@@ -32,7 +32,7 @@
             const zip = await unzip(zipBlob)
             const projectFolder = await unzippedProjectFolder(zip, appName)
             
-            handleResourcesFolder(projectFolder)
+            handleResourcesFolder(projectFolder, appName)
             modifyPom(projectFolder)
             addVsCodeFolder(projectFolder)
 
@@ -44,7 +44,7 @@
         });
 
 
-        function handleResourcesFolder(projectFolder){
+        function handleResourcesFolder(projectFolder, appName){
             const propertiesContent = "spring.config.import=file:.env.properties" + "\n" + 
                 "app.version=local-dev" + "\n" + 
                 "app.path.logs=.path/logs" + "\n" + 
@@ -52,6 +52,8 @@
             
             const resourcesFolder = projectFolder.folder('src').folder('main').folder('resources');
             resourcesFolder.file('application.properties', propertiesContent);
+            resourcesFolder.file('logback-spring.xml', getLogbackFileContent(appName));
+
         }
 
         function forceDownload(newZipBlob, appName){
@@ -145,6 +147,51 @@
                     "pivotal.vscode-spring-boot"
                 ]
             }, null, 2));
+        }
+
+        function getLogbackFileContent(appName){
+            return `<?xml version="1.0" encoding="UTF-8"?>
+<configuration debug="false">
+
+	<property resource="application.properties" />
+
+	<appender name="Console" class="ch.qos.logback.core.ConsoleAppender">
+		<layout class="ch.qos.logback.classic.PatternLayout">
+			<Pattern>
+				%-5p|%date{ISO8601}|%X{Slf4jMDCFilter.UUID}|%logger{0}|%m%ex%n
+			</Pattern>
+		</layout>
+	</appender>
+
+
+	<appender name="RollingFile"
+		class="ch.qos.logback.core.rolling.RollingFileAppender">
+		<file>\${app.path.logs}/app-logger.log</file>
+		<encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
+			<Pattern>
+				%-5p|%date{ISO8601}|%X{Slf4jMDCFilter.UUID}|%logger{0}|%m%ex%n
+			</Pattern>
+		</encoder>
+
+		<rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+			<fileNamePattern>\${app.path.logs}/${appName}-logger-%d{yyyy-MM-dd}.%i.log
+			</fileNamePattern>
+			<timeBasedFileNamingAndTriggeringPolicy
+				class="ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP">
+				<maxFileSize>10MB</maxFileSize>
+			</timeBasedFileNamingAndTriggeringPolicy>
+		</rollingPolicy>
+	</appender>
+
+	<logger name="org.springframework.web.method.HandlerMethod">
+		<level value="TRACE" />
+	</logger>
+
+
+	<root level="info">
+		<appender-ref ref="RollingFile" />
+	</root>
+</configuration>`
         }
 
     </script>
