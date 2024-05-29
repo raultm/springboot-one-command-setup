@@ -32,6 +32,7 @@
             const zip = await unzip(zipBlob)
             const projectFolder = await unzippedProjectFolder(zip, appName)
             
+            handleResourcesFolder(projectFolder)
             modifyPom(projectFolder)
             addVsCodeFolder(projectFolder)
 
@@ -42,6 +43,16 @@
             
         });
 
+
+        function handleResourcesFolder(projectFolder){
+            const propertiesContent = "spring.config.import=file:.env.properties" + "\n" + 
+                "app.version=local-dev" + "\n" + 
+                "app.path.logs=.path/logs" + "\n" + 
+                "app.env=local" + "\n"
+            
+            const resourcesFolder = projectFolder.folder('src').folder('main').folder('resources');
+            resourcesFolder.file('application.properties', propertiesContent);
+        }
 
         function forceDownload(newZipBlob, appName){
             // Crear un enlace de descarga
