@@ -33,6 +33,7 @@
             const projectFolder = await unzippedProjectFolder(zip, appName)
             
             handleResourcesFolder(projectFolder, appName)
+            addAppController(projectFolder, appName)
             modifyPom(projectFolder)
             addVsCodeFolder(projectFolder)
 
@@ -43,7 +44,18 @@
             
         });
 
+        function addAppController(projectFolder, appName) {
+            const controllersFolder = projectFolder
+                .folder('src')
+                .folder('main')
+                .folder('java')
+                .folder('es')
+                .folder('acaex')
+                .folder(appName)
+                .folder('controllers');
 
+            controllersFolder.file('AppController.java', getAppControllerFileContent(appName));
+        }
         function handleResourcesFolder(projectFolder, appName){
             const propertiesContent = "spring.config.import=file:.env.properties" + "\n" + 
                 "app.version=local-dev" + "\n" + 
@@ -149,7 +161,7 @@
             }, null, 2));
         }
 
-        function getLogbackFileContent(appName){
+        function getLogbackFileContent(appName) {
             return `<?xml version="1.0" encoding="UTF-8"?>
 <configuration debug="false">
 
@@ -194,6 +206,36 @@
 </configuration>`
         }
 
+        function getAppControllerFileContent(appName) {
+            return `package es.acaex.${appName}.controllers;
+
+import java.util.HashMap;
+import java.util.Map;
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+@RestController
+@RequestMapping
+public class AppController {
+    
+    @Value("\${app.env}")
+    private String appEnv;
+
+    @Value("\${app.version}")
+    private String appVersion;
+
+    @GetMapping
+    public Map<String, String> info() {
+        return new HashMap<String, String>() {{
+            put("Entorno", appEnv);
+            put("Version", appVersion);
+        }};
+    }
+}`
+        }
     </script>
 </body>
 
