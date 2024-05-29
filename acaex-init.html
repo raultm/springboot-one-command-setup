@@ -7,7 +7,7 @@
     <title>Acaex API Initializr Project Setup</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.7.1/jszip.min.js"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css" />
-    
+
 </head>
 
 <body>
@@ -16,7 +16,7 @@
         <h1>Acaex API Initializr Project Setup</h1>
         <form id="projectForm">
             <label for="appName">Nombre de la Aplicacion(minúsculas y sin espacios):</label>
-            <input type="text" id="appName" name="appName" required>
+            <input type="text" id="appName" name="appName" value="demo" required>
             <button type="submit">Generar Proyecto</button>
         </form>
         <a id="downloadLink" style="display:none;">Download Project</a>
@@ -34,15 +34,45 @@
             
             handleResourcesFolder(projectFolder, appName)
             addAppController(projectFolder, appName)
-            modifyPom(projectFolder)
+            projectFolder.file('pom.xml', modifiedPom(projectFolder, appName));
             addVsCodeFolder(projectFolder)
 
             // Re-comprimir el proyecto modificado
             const newZipBlob = await zip.generateAsync({ type: 'blob' });
 
             forceDownload(newZipBlob, appName)
-            
+
         });
+
+        function blobToBase64(blob) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onloadend = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsDataURL(blob);
+            });
+        }
+
+        async function getBlobFromLocalStorageOrFetch(key, url) {
+            // Comprueba si el blob ya está en localStorage
+            const savedBlob = localStorage.getItem(key);
+            if (savedBlob) {
+                // Convierte el string base64 a un blob
+                const response = await fetch(savedBlob);
+                console.log("Blob from cache")
+                return await response.blob();
+            }
+
+            // Si no está en localStorage, realiza el fetch
+            const response = await fetch(url);
+            const blob = await response.blob();
+
+            // Convierte el blob a base64 y guárdalo en localStorage
+            const base64Blob = await blobToBase64(blob);
+            localStorage.setItem(key, base64Blob);
+            console.log("Blob from fetch")
+            return blob;
+        }
 
         function addAppController(projectFolder, appName) {
             const controllersFolder = projectFolder
@@ -56,19 +86,20 @@
 
             controllersFolder.file('AppController.java', getAppControllerFileContent(appName));
         }
-        function handleResourcesFolder(projectFolder, appName){
-            const propertiesContent = "spring.config.import=file:.env.properties" + "\n" + 
-                "app.version=local-dev" + "\n" + 
-                "app.path.logs=.path/logs" + "\n" + 
+
+        function handleResourcesFolder(projectFolder, appName) {
+            const propertiesContent = "spring.config.import=file:.env.properties" + "\n" +
+                "app.version=local-dev" + "\n" +
+                "app.path.logs=.path/logs" + "\n" +
                 "app.env=local" + "\n"
-            
+
             const resourcesFolder = projectFolder.folder('src').folder('main').folder('resources');
             resourcesFolder.file('application.properties', propertiesContent);
             resourcesFolder.file('logback-spring.xml', getLogbackFileContent(appName));
 
         }
 
-        function forceDownload(newZipBlob, appName){
+        function forceDownload(newZipBlob, appName) {
             // Crear un enlace de descarga
             const downloadLink = document.getElementById('downloadLink');
             downloadLink.href = URL.createObjectURL(newZipBlob);
@@ -97,9 +128,10 @@
             const searchParams = new URLSearchParams(options).toString();
             console.log(`https://start.spring.io/starter.zip?${searchParams}`)
             const url = 'https://corsproxy.io/?' + encodeURIComponent(`https://start.spring.io/starter.zip?${searchParams}`);
-            const response = await fetch(url)
-            console.log(response);
-            const blob = await response.blob();
+            // const response = await fetch(url)
+            // console.log(response);
+            // const blob = await response.blob();
+            const blob = await getBlobFromLocalStorageOrFetch(appName, url)
             console.log(blob)
             return blob
         }
@@ -112,11 +144,18 @@
             return zip.folder(appName);
         }
 
-        async function modifyPom(projectFolder) {
+        async function modifiedPom(projectFolder, appName) {
+            console.log(projectFolder)
             // Modificar el archivo pom.xml
             const pomXml = await projectFolder.file('pom.xml').async('string');
             const parser = new DOMParser();
             const xmlDoc = parser.parseFromString(pomXml, 'application/xml');
+
+            const properties = xmlDoc.getElementsByTagName('properties')[0];
+            console.log(properties)
+            properties.innerHTML = `<java.version>17</java.version>` + "\n" +
+                `<finalName>${appName}</finalName>` + "\n" +
+                `<directory>/var/data</directory>`
 
             // Aquí puedes hacer las modificaciones necesarias al pom.xml
             const dependencies = xmlDoc.getElementsByTagName('dependencies')[0];
@@ -128,35 +167,98 @@
             `;
             dependencies.appendChild(newDependency);
 
+            console.log(xmlDoc)
             // Serializar el XML modificado
             const serializer = new XMLSerializer();
             const newPomXml = serializer.serializeToString(xmlDoc);
-            projectFolder.file('pom.xml', newPomXml);
+            //console.log(newPomXml)
+            //projectFolder.file('pom.xml', newPomXml);
+            // No me funciona si lo hago aqui dentro
+            //projectFolder.file(appName + 'pom.xml', newPomXml);
+            //projectFolder.file(appName + 'poma.xml', newPomXml);
+            return newPomXml;
         }
 
         async function addVsCodeFolder(projectFolder) {
             // Añadir archivos adicionales
             const vscodeFolder = projectFolder.folder('.vscode');
             vscodeFolder.file('launch.json', JSON.stringify({
-                "version": "0.2.0",
-                "configurations": [
+                "version": "2.0.0",
+                "tasks": [
                     {
-                        "type": "java",
-                        "name": "Debug (Launch) - Current File",
-                        "request": "launch",
-                        "mainClass": `com.example.${appName}.DemoApplication`
+                        "label": "setup_environment",
+                        "type": "shell",
+                        "command": "./.scripts/setup.sh",
+                        "windows": {
+                            "command": "bash .scripts/setup.sh"
+                        },
+                        "runOptions": {
+                            "runOn": "folderOpen"
+                        },
+                        "problemMatcher": []
+                    },
+                    {
+                        "label": "spring_boot_run",
+                        "type": "shell",
+                        "command": ".\\mvnw clean spring-boot:run",
+                        "problemMatcher": []
+                    },
+                    {
+                        "label": "bump_version",
+                        "type": "shell",
+                        "command": "./.scripts/bump_version.sh ${input:selectedVersion}",
+                        "windows": {
+                            "command": "$PSDefaultParameterValues['Out-File:Encoding'] = 'utf8'; bash .scripts/bump_version.sh ${input:selectedVersion}"
+                        },
+                        "problemMatcher": []
+                    }
+                ],
+                "inputs": [
+                    {
+                        "type": "pickString",
+                        "id": "selectedVersion",
+                        "description": "¿qué tipo de versión está creando? \nPruba\nprueba",
+                        "options": [
+                            {
+                                "label": "Parche - Nueva funcionalidad compatible con versiones anteriores o arreglo de error",
+                                "value": "patch"
+                            },
+                            {
+                                "label": "Mayor - Nueva funcionalidad incompatible con versiones anteriores.",
+                                "value": "minor"
+                            },
+                            {
+                                "label": "Mayor - Hito de Nueva Version.",
+                                "value": "major"
+                            }
+                        ],
+                        "default": "patch"
                     }
                 ]
             }, null, 2));
 
             vscodeFolder.file('settings.json', JSON.stringify({
-                "java.configuration.updateBuildConfiguration": "interactive"
+                "VsCodeTaskButtons.showCounter": true,
+                "VsCodeTaskButtons.tasks": [
+                    {
+                        "label": "$(testing-run-icon) Spring-Boot:Run",
+                        "task": "spring_boot_run",
+                        "tooltip": "Ejecutar mvn spring-boot:run."
+                    },
+                    {
+                        "label": "$(versions) Nueva Versión",
+                        "task": "bump_version",
+                        "tooltip": "Tarea para aumentar de version y etiquetar en git correctamente."
+                    }
+                ]
             }, null, 2));
 
             vscodeFolder.file('extensions.json', JSON.stringify({
                 "recommendations": [
                     "vscjava.vscode-java-pack",
-                    "pivotal.vscode-spring-boot"
+                    "vmware.vscode-boot-dev-pack",
+                    "vscode-icons-team.vscode-icons",
+                    "spencerwmiles.vscode-task-buttons"
                 ]
             }, null, 2));
         }
