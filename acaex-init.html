@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Acaex API Initializr Project Setup</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.7.1/jszip.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css" />
+    
+</head>
+
+<body>
+    <main class="container">
+
+        <h1>Acaex API Initializr Project Setup</h1>
+        <form id="projectForm">
+            <label for="appName">Nombre de la Aplicacion(minúsculas y sin espacios):</label>
+            <input type="text" id="appName" name="appName" required>
+            <button type="submit">Generar Proyecto</button>
+        </form>
+        <a id="downloadLink" style="display:none;">Download Project</a>
+    </main>
+    <script>
+
+        document.getElementById('projectForm').addEventListener('submit', async (event) => {
+            event.preventDefault();
+
+            const appName = document.getElementById('appName').value;
+
+            const zipBlob = await downloadSpringbootInitializr(appName)
+            const zip = await unzip(zipBlob)
+            const projectFolder = await unzippedProjectFolder(zip, appName)
+            
+            modifyPom(projectFolder)
+            addVsCodeFolder(projectFolder)
+
+            // Re-comprimir el proyecto modificado
+            const newZipBlob = await zip.generateAsync({ type: 'blob' });
+
+            forceDownload(newZipBlob, appName)
+            
+        });
+
+
+        function forceDownload(newZipBlob, appName){
+            // Crear un enlace de descarga
+            const downloadLink = document.getElementById('downloadLink');
+            downloadLink.href = URL.createObjectURL(newZipBlob);
+            downloadLink.download = `${appName}.zip`;
+            downloadLink.style.display = 'none';
+            downloadLink.textContent = 'Download Project';
+            downloadLink.click();
+        }
+
+        async function downloadSpringbootInitializr(appName) {
+            // https://stackoverflow.com/questions/6566456/how-to-serialize-an-object-into-a-list-of-url-query-parameters
+            const options = {
+                type: "maven-project",
+                language: "java",
+                bootVersion: "3.3.0",
+                baseDir: appName,
+                groupId: "es.acaex",
+                artifactId: appName,
+                description: "Acaex Initializr for " + appName,
+                packageName: "es.acaex.es",
+                packaging: "war",
+                javaVersion: 17,
+                dependencies: "lombok,h2,devtools,oracle,web"
+            }
+            // Descargar el proyecto desde Spring Initializr
+            const searchParams = new URLSearchParams(options).toString();
+            console.log(`https://start.spring.io/starter.zip?${searchParams}`)
+            const url = 'https://corsproxy.io/?' + encodeURIComponent(`https://start.spring.io/starter.zip?${searchParams}`);
+            const response = await fetch(url)
+            console.log(response);
+            const blob = await response.blob();
+            console.log(blob)
+            return blob
+        }
+
+        async function unzip(blob) {
+            return await JSZip.loadAsync(blob);
+        }
+
+        async function unzippedProjectFolder(zip, appName) {
+            return zip.folder(appName);
+        }
+
+        async function modifyPom(projectFolder) {
+            // Modificar el archivo pom.xml
+            const pomXml = await projectFolder.file('pom.xml').async('string');
+            const parser = new DOMParser();
+            const xmlDoc = parser.parseFromString(pomXml, 'application/xml');
+
+            // Aquí puedes hacer las modificaciones necesarias al pom.xml
+            const dependencies = xmlDoc.getElementsByTagName('dependencies')[0];
+            // https://stackoverflow.com/questions/13220095/remove-unwanted-empty-xmlns-attribute-added-by-appendchild
+            const newDependency = xmlDoc.createElementNS(dependencies.namespaceURI, 'dependency');
+            newDependency.innerHTML = `
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-starter-thymeleaf</artifactId>
+            `;
+            dependencies.appendChild(newDependency);
+
+            // Serializar el XML modificado
+            const serializer = new XMLSerializer();
+            const newPomXml = serializer.serializeToString(xmlDoc);
+            projectFolder.file('pom.xml', newPomXml);
+        }
+
+        async function addVsCodeFolder(projectFolder) {
+            // Añadir archivos adicionales
+            const vscodeFolder = projectFolder.folder('.vscode');
+            vscodeFolder.file('launch.json', JSON.stringify({
+                "version": "0.2.0",
+                "configurations": [
+                    {
+                        "type": "java",
+                        "name": "Debug (Launch) - Current File",
+                        "request": "launch",
+                        "mainClass": `com.example.${appName}.DemoApplication`
+                    }
+                ]
+            }, null, 2));
+
+            vscodeFolder.file('settings.json', JSON.stringify({
+                "java.configuration.updateBuildConfiguration": "interactive"
+            }, null, 2));
+
+            vscodeFolder.file('extensions.json', JSON.stringify({
+                "recommendations": [
+                    "vscjava.vscode-java-pack",
+                    "pivotal.vscode-spring-boot"
+                ]
+            }, null, 2));
+        }
+
+    </script>
+</body>
+
+</html>
