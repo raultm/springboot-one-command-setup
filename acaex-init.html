@@ -37,6 +37,7 @@
             projectFolder.file('pom.xml', modifiedPom(projectFolder, appName));
             projectFolder.file('.versionrc', generateVersionRc())
             projectFolder.file('.env.properties.example', getEnvPropertiesExample())
+            projectFolder.file('.gitlab-ci.yml', getGitlabCiFileContent())
             projectFolder.folder(`src/main/java/es/acaex/${appName}/services`)
             projectFolder.folder(`src/main/java/es/acaex/${appName}/models`)
             projectFolder.folder(`src/main/java/es/acaex/${appName}/repositories`)
@@ -510,6 +511,130 @@ public class AppController {
     }
 
 }`
+        }
+
+        function getGitlabCiFileContent() {
+            return `stages:
+  - test
+  - build
+  - deploy
+
+image: maven:3.6.3-jdk-8
+
+# Definimos Variables Generales y por entorno en función de la branch
+before_script:
+  - export SAST_JAVA_VERSION=11
+  - export SECURE_LOG_LEVEL="debug"
+  # Las siguientes líneas no hacen falta pero clarifican y verbalizan las variables que se usan durante los diferentes procesos
+  - export APPNAME=$APPNAME
+  - export INTEGRATION_USER=$INTEGRATION_USER
+  - export WEBLOGIC_USER=$WEBLOGIC_USER
+  - export WEBLOGIC_PASS=$WEBLOGIC_PASS
+  # Variables por rama [desarrollo,preproduccion]
+  - echo $CI_COMMIT_REF_NAME
+  - |
+      if [ "$CI_COMMIT_REF_NAME" = "desarrollo" ]; then
+        export DEPLOY_SERVER=$SERVER_DES
+        export WLPATH=$WLPATH_DES
+        export CONFIGPATH=$CONFIGPATH_DES
+        export SERVERNAME=$SERVERNAME_DES
+        export LOGSPATH=$LOGSPATH_DES
+        export OPENAPI_URL="https://despgapbackend.acaex.es/pgap_backend"
+        echo "Definidas las variables de entorno desarrollo"
+      elif [ "$CI_COMMIT_REF_NAME" = "preproduccion" ]; then
+        export DEPLOY_SERVER=$SERVER_PRE
+        export WLPATH=$WLPATH_PRE
+        export CONFIGPATH=$CONFIGPATH_PRE
+        export SERVERNAME=$SERVERNAME_PRE
+        export LOGSPATH=$LOGSPATH_PRE
+        export OPENAPI_URL="https://prupgapbackend.acaex.es/pgap_backend"
+        echo "Definidas las variables de entorno preproduccion"
+      else
+        echo "Rama no contemplada"
+      fi
+  - echo $DEPLOY_SERVER
+  - echo $WLPATH
+  - echo $CONFIGPATH
+  - echo $SERVERNAME
+  - echo $LOGSPATH
+
+
+# Tests creados por el equipo para el proyecto
+apptests:
+  stage: test
+  except:
+    - tags
+  tags:
+    - springboot
+  script:
+    - mvn clean verify
+  artifacts:
+    when: always
+    reports:
+      junit:
+        - target/surefire-reports/TEST-*.xml
+
+include:
+  - template: Security/Secret-Detection.gitlab-ci.yml
+  - template: Security/Dependency-Scanning.gitlab-ci.yml
+
+# Para detectar posibles secretos que se hayan olvida en los archivos de la aplicación
+secret_detection:
+  tags:
+    - springboot
+
+# Tarea para construir el war, se genera el archivo application.properties a vuelo. 
+build:
+  stage: build
+  except:
+    - tags
+  tags:
+    - springboot
+  script:    
+    # Archivo externo de configuracion, versión y carpeta donde se alojarán los logs
+    - echo "spring.config.import=file:\${CONFIGPATH}" > src/main/resources/application.properties
+    - echo "app.version=$(git describe --tags --abbrev=0)" >> src/main/resources/application.properties
+    - echo "app.path.logs=\${LOGSPATH}" >> src/main/resources/application.properties
+    - echo "app.env=\${CI_COMMIT_REF_NAME}" >> src/main/resources/application.properties
+    # Se muestra contenido en logs para posibles comprobaciones
+    - cat src/main/resources/application.properties
+    - mvn clean package -Pdev -Dmaven.test.skip=true -Ddirectory=/var/data/\${CI_COMMIT_REF_NAME}
+    - ls -lah /var/data
+    # Nos interesa tener esto en el log para buscar posibles incongruencias con dependencias en local
+    # - mvn dependency:tree
+   
+
+# Despliegue en WebLogic 
+deploy:
+  stage: deploy
+  except:
+    - tags
+  only:
+    - desarrollo
+    - preproduccion
+  tags:
+    - springboot
+  script:
+    # Gestion de credenciales SSH para que INTEGRATION_USER mande el war sin usar contraseña
+    - 'which ssh-agent || ( apt-get install -qq openssh-client )'
+    - eval $(ssh-agent -s)
+    - echo \${SSH_PRIVATE_KEY} | base64 --decode | ssh-add -
+    - mkdir -p ~/.ssh
+    - chmod 700 ~/.ssh 
+    - '[[ -f /.dockerenv ]] && echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config'
+    # Se borra todo lo que hay en carpeta actualizaciones
+    - ssh $INTEGRATION_USER@$DEPLOY_SERVER "rm -rf /var/www/\${APPNAME}/actualizaciones/* && exit"
+    # Creamos una carpeta con un timestamp sonde vamos a dejar el war
+    - export COMMIT_TIME=$(git show -s --format=%ct $CI_COMMIT_SHA)
+    - ssh $INTEGRATION_USER@$DEPLOY_SERVER "mkdir -p /var/www/\${APPNAME}/actualizaciones/$COMMIT_TIME && exit"
+    # Copiamos el war en la carpeta creada antes
+    - scp /var/data/$CI_COMMIT_REF_NAME/$APPNAME/$APPNAME.war $INTEGRATION_USER@$DEPLOY_SERVER:/var/www/\${APPNAME}/actualizaciones/$COMMIT_TIME/$APPNAME.war
+    # Repligue de la version anterior
+    - ssh $INTEGRATION_USER@$DEPLOY_SERVER "cd $WLPATH && /opt/jdk1.8.0_281/bin/java -cp weblogic.jar weblogic.Deployer -verbose -noexit -adminurl t3://$DEPLOY_SERVER:7001 -username $WEBLOGIC_USER -password $WEBLOGIC_PASS -targets \${SERVERNAME} -name $APPNAME -undeploy -timeout 300 && exit"
+    # Nuevo despligue
+    - ssh $INTEGRATION_USER@$DEPLOY_SERVER "cd $WLPATH && /opt/jdk1.8.0_281/bin/java -cp weblogic.jar weblogic.Deployer -verbose -noexit -adminurl t3://$DEPLOY_SERVER:7001 -username $WEBLOGIC_USER -password $WEBLOGIC_PASS -targets \${SERVERNAME} -source /var/www/\${APPNAME}/actualizaciones/$COMMIT_TIME/$APPNAME.war -stage -deploy -timeout 300 -name $APPNAME && exit"
+  when: on_success
+  needs: [build]`
         }
 
         function getEnvPropertiesExample() {
