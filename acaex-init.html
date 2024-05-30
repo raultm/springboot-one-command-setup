@@ -41,21 +41,6 @@
             projectFolder.folder(`src/main/java/es/acaex/${appName}/services`)
             projectFolder.folder(`src/main/java/es/acaex/${appName}/models`)
             projectFolder.folder(`src/main/java/es/acaex/${appName}/repositories`)
-            // ¿Modificacion de .gitignore?
-            /**
-             * Script de setup 
-             *      - flag para marcar que ya se ha realizado el setup y no ejecutarlo si lo tiene
-             *      - si no está instalado el comando commit-and-tag-version y existe node
-             *          - instalación de https://github.com/absolute-version/commit-and-tag-version
-             *      - si no hay repositorio 
-             *          - git init
-             *          - git commit -am "feat: Acaex API Initializr - Inicio de Proyecto"
-             *          - Crear primera version con `commit-and-tag-version --packageFiles pom.xml --bumpFiles pom.xml`
-             *      - si no existe .env.properties
-             *          - crearlo haciendo una copia de .env.properties.example
-             *      
-             * */
-
             addVsCodeFolder(projectFolder)
             addScriptsFolder(projectFolder)
 
@@ -392,7 +377,7 @@ if %errorlevel% neq 0 (
 REM Comprueba si el directorio actual es un repositorio de git
 if not exist ".git" (
     echo Inicializando un nuevo repositorio Git...
-    git init
+    git init --initial-branch=desarrollo
     if %errorlevel% neq 0 (
         echo Error al inicializar el repositorio Git.
         exit /b 1
