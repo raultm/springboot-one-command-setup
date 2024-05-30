@@ -31,11 +31,29 @@
             const zipBlob = await downloadSpringbootInitializr(appName)
             const zip = await unzip(zipBlob)
             const projectFolder = await unzippedProjectFolder(zip, appName)
-            
+
             handleResourcesFolder(projectFolder, appName)
             addAppController(projectFolder, appName)
             projectFolder.file('pom.xml', modifiedPom(projectFolder, appName));
+            projectFolder.file('.versionrc', generateVersionRc())
+            projectFolder.file('.env.properties.example', getEnvPropertiesExample())
+            // ¿Modificacion de .gitignore?
+            /**
+             * Script de setup 
+             *      - flag para marcar que ya se ha realizado el setup y no ejecutarlo si lo tiene
+             *      - si no está instalado el comando commit-and-tag-version y existe node
+             *          - instalación de https://github.com/absolute-version/commit-and-tag-version
+             *      - si no hay repositorio 
+             *          - git init
+             *          - git commit -am "feat: Acaex API Initializr - Inicio de Proyecto"
+             *          - Crear primera version con `commit-and-tag-version --packageFiles pom.xml --bumpFiles pom.xml`
+             *      - si no existe .env.properties
+             *          - crearlo haciendo una copia de .env.properties.example
+             *      
+             * */
+
             addVsCodeFolder(projectFolder)
+            addScriptsFolder(projectFolder)
 
             // Re-comprimir el proyecto modificado
             const newZipBlob = await zip.generateAsync({ type: 'blob' });
@@ -43,6 +61,19 @@
             forceDownload(newZipBlob, appName)
 
         });
+
+        function generateVersionRc() {
+            return JSON.stringify({
+                "header": "# Changelog\n\nTodos los cambios relevantes relativos al proyecto estarán aquí documentados.",
+                "types": [
+                    { "type": "feat", "section": "Funcionalidades" },
+                    { "type": "fix", "section": "Errores Corregidos" },
+                    { "type": "test", "section": "Tests", "hidden": true },
+                    { "type": "build", "section": "Sistema de Build", "hidden": true },
+                    { "type": "ci", "hidden": true }
+                ]
+            }, null, 2)
+        }
 
         function blobToBase64(blob) {
             return new Promise((resolve, reject) => {
@@ -96,6 +127,7 @@
             const resourcesFolder = projectFolder.folder('src').folder('main').folder('resources');
             resourcesFolder.file('application.properties', propertiesContent);
             resourcesFolder.file('logback-spring.xml', getLogbackFileContent(appName));
+            resourcesFolder.file('openapi.yml', getOpenApiSpecificatioExample())
 
         }
 
@@ -119,7 +151,7 @@
                 groupId: "es.acaex",
                 artifactId: appName,
                 description: "Acaex Initializr for " + appName,
-                packageName: "es.acaex.es",
+                packageName: "es.acaex."+appName,
                 packaging: "war",
                 javaVersion: 17,
                 dependencies: "lombok,h2,devtools,oracle,web"
@@ -162,8 +194,9 @@
             // https://stackoverflow.com/questions/13220095/remove-unwanted-empty-xmlns-attribute-added-by-appendchild
             const newDependency = xmlDoc.createElementNS(dependencies.namespaceURI, 'dependency');
             newDependency.innerHTML = `
-                <groupId>org.springframework.boot</groupId>
-                <artifactId>spring-boot-starter-thymeleaf</artifactId>
+                <groupId>org.springdoc</groupId>
+                <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+                <version>2.3.0</version>
             `;
             dependencies.appendChild(newDependency);
 
@@ -182,16 +215,13 @@
         async function addVsCodeFolder(projectFolder) {
             // Añadir archivos adicionales
             const vscodeFolder = projectFolder.folder('.vscode');
-            vscodeFolder.file('launch.json', JSON.stringify({
+            vscodeFolder.file('tasks.json', JSON.stringify({
                 "version": "2.0.0",
                 "tasks": [
                     {
                         "label": "setup_environment",
                         "type": "shell",
-                        "command": "./.scripts/setup.sh",
-                        "windows": {
-                            "command": "bash .scripts/setup.sh"
-                        },
+                        "command": "./scripts/setup.bat",
                         "runOptions": {
                             "runOn": "folderOpen"
                         },
@@ -206,35 +236,10 @@
                     {
                         "label": "bump_version",
                         "type": "shell",
-                        "command": "./.scripts/bump_version.sh ${input:selectedVersion}",
-                        "windows": {
-                            "command": "$PSDefaultParameterValues['Out-File:Encoding'] = 'utf8'; bash .scripts/bump_version.sh ${input:selectedVersion}"
-                        },
+                        "command": "if (Get-Command commit-and-tag-version -ErrorAction SilentlyContinue) { commit-and-tag-version --packageFiles pom.xml --bumpFiles pom.xml } else { Write-Host 'commit-and-tag-version no está instalado en el sistema.' }",
                         "problemMatcher": []
                     }
                 ],
-                "inputs": [
-                    {
-                        "type": "pickString",
-                        "id": "selectedVersion",
-                        "description": "¿qué tipo de versión está creando? \nPruba\nprueba",
-                        "options": [
-                            {
-                                "label": "Parche - Nueva funcionalidad compatible con versiones anteriores o arreglo de error",
-                                "value": "patch"
-                            },
-                            {
-                                "label": "Mayor - Nueva funcionalidad incompatible con versiones anteriores.",
-                                "value": "minor"
-                            },
-                            {
-                                "label": "Mayor - Hito de Nueva Version.",
-                                "value": "major"
-                            }
-                        ],
-                        "default": "patch"
-                    }
-                ]
             }, null, 2));
 
             vscodeFolder.file('settings.json', JSON.stringify({
@@ -250,7 +255,8 @@
                         "task": "bump_version",
                         "tooltip": "Tarea para aumentar de version y etiquetar en git correctamente."
                     }
-                ]
+                ],
+                "java.compile.nullAnalysis.mode": "automatic"
             }, null, 2));
 
             vscodeFolder.file('extensions.json', JSON.stringify({
@@ -261,6 +267,78 @@
                     "spencerwmiles.vscode-task-buttons"
                 ]
             }, null, 2));
+        }
+
+        async function addScriptsFolder(projectFolder) {
+            const scriptsFolder = projectFolder.folder('scripts');
+            scriptsFolder.file('setup.bat', getSetupScriptContent(), { unixPermissions: "755" });
+        }
+
+        function getSetupScriptContent() {
+            return `@echo off
+setlocal
+
+REM Comprueba si .env.properties existe
+if not exist ".env.properties" (
+    if exist ".env.properties.example" (
+        echo Creando .env.properties a partir de .env.properties.example...
+        copy ".env.properties.example" ".env.properties"
+        if %errorlevel% neq 0 (
+            echo Error al copiar .env.properties.example a .env.properties.
+            exit /b 1
+        )
+    ) else (
+        echo .env.properties.example no existe. No se puede crear .env.properties.
+        exit /b 1
+    )
+)
+
+REM Comprueba si el comando commit-and-tag-version está instalado
+where commit-and-tag-version >nul 2>&1
+if %errorlevel% neq 0 (
+    REM Comprueba si Node.js está instalado
+    where node >nul 2>&1
+    if %errorlevel% neq 0 (
+        echo Node.js no está instalado. Por favor, instala Node.js primero.
+        exit /b 1
+    ) else (
+        echo Instalando commit-and-tag-version...
+        npm install -g commit-and-tag-version
+        if %errorlevel% neq 0 (
+            echo Error al instalar commit-and-tag-version.
+            exit /b 1
+        )
+    )
+)
+
+REM Comprueba si el directorio actual es un repositorio de git
+if not exist ".git" (
+    echo Inicializando un nuevo repositorio Git...
+    git init
+    if %errorlevel% neq 0 (
+        echo Error al inicializar el repositorio Git.
+        exit /b 1
+    )
+    git add -A
+    git commit -am "feat: Acaex API Initializr - Inicio de Proyecto"
+    if %errorlevel% neq 0 (
+        echo Error al hacer el primer commit.
+        exit /b 1
+    )
+    
+    REM Crear la primera versión
+    echo Creando la primera versión con commit-and-tag-version...
+    commit-and-tag-version --packageFiles pom.xml --bumpFiles pom.xml
+    if %errorlevel% neq 0 (
+        echo Error al crear la primera versión.
+        exit /b 1
+    )
+)
+
+echo Setup completado.
+endlocal
+exit /b 0`
+
         }
 
         function getLogbackFileContent(appName) {
@@ -311,10 +389,18 @@
         function getAppControllerFileContent(appName) {
             return `package es.acaex.${appName}.controllers;
 
+            import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.ClassPathResource;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -336,8 +422,230 @@ public class AppController {
             put("Version", appVersion);
         }};
     }
+
+    @GetMapping(value = "openapi.yml", produces = "application/yaml;charset=UTF-8")
+    public ResponseEntity<String> openapiYaml() {
+        return ResponseEntity.ok(getOpenApiYaml());
+    }
+
+    private String getOpenApiYaml(){
+        String contenido = "no Content";
+        ClassPathResource resource = new ClassPathResource("openapi.yml");
+        
+        try {
+            InputStream inputStream = resource.getInputStream();
+            contenido = new BufferedReader(
+                new InputStreamReader(inputStream, StandardCharsets.UTF_8))
+                    .lines()
+                    .collect(Collectors.joining("\\n")
+            );
+        } catch (IOException e) {
+            contenido = "IOException";
+        }
+        return contenido;
+    }
+
 }`
         }
+
+        function getEnvPropertiesExample() {
+            return `# OpenAPI
+springdoc.swagger-ui.url=/openapi.yml
+
+# Base de Datos
+spring.datasource.url=jdbc:h2:file:./database
+spring.datasource.username=sa
+spring.datasource.password=sa
+spring.datasource.driver-class-name=org.h2.Driver
+spring.jpa.hibernate.ddl-auto=create
+spring.jpa.database-platform=org.hibernate.dialect.H2Dialect
+spring.jpa.hibernate.use-new-id-generator-mappings=false
+
+# Jwt-Visado
+jwt.environment=desarrollo
+cors.allowedOrigins=http://localhost:*,http://127.0.0.1:*
+visado.area=
+visado.aplicacion=
+visado.entorno=
+# visado.profileFallback=
+
+# Alfresco Config
+# alfresco.usuario=
+# alfresco.pass=
+# alfresco.url.login=https://desgdcorp.gobex.pri/alfresco/api/-default-/public/cmis/versions/1.1/browser
+# alfresco.url.site=/Sitios/NOMBREPROYECTO/documentLibrary
+# spring.servlet.multipart.enabled=true
+# spring.servlet.multipart.max-file-size=10MB
+# spring.servlet.multipart.max-request-size=10MB
+
+# Email Config
+# spring.mail.host=envios.gobex.pri
+# spring.mail.port=25
+# spring.mail.username=
+# spring.mail.password=
+# spring.mail.defaultEncoding=UTF-8
+# spring.mail.properties.mail.smtp.auth=true
+# spring.mail.properties.mail.smtp.timeout=20000
+# spring.mail.properties.mail.smtp.starttls.enable=false
+# spring.mail.properties.mail.debug=true
+`
+        }
+
+        function getOpenApiSpecificatioExample() {
+    return `openapi: "3.1.0"
+info:
+  version: 0.1.0
+  title: Peticiones de Gabinete de Prensa
+servers:
+  - url: http://localhost:8080
+    description: Servidor local de desarrollo
+tags:
+  - name: consejerias
+    description: Consejerías de la Junta de Extremadura
+paths:
+  /consejerias:
+    get:
+      summary: Listado de Consejerías en la aplicación
+      operationId: listarConsejerias
+      tags:
+        - consejerias
+      responses:
+        "200":
+          description: Listado completo de consejerías
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConsejeriasListResponse"
+        "401":
+          description: El usuario no está autenticado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NoAuthError"
+        "403":
+          description: El usuario no tiene permisos para acceder a este recurso
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NoAuthError"
+    post:
+      summary: Crear una nueva consejeria
+      operationId: crearConsejeria
+      tags:
+        - consejerias
+      requestBody:
+        description: Crear una nueva consejeria en la Aplicación
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConsejeriaCreate"
+      responses:
+        "201":
+          description: Consejería creada correctamente
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConsejeriaSummaryResponse"
+        "400":
+          description: La información ofrecida es incorrecta
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorObject"
+        "401":
+          description: El usuario no está autenticado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NoAuthError"
+        "403":
+          description: El usuario no tiene permisos para acceder a este recurso
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NoAuthError"
+components:
+  securitySchemes:
+    JWT:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    Profile:
+      type: apiKey
+      in: header
+      name: Profile
+    User:
+      type: apiKey
+      in: header
+      name: Jwt-User
+  schemas:
+    NoAuthError:
+      description: Cuando el usuario no está logueado(AUTHenticate) o no tiene permisos (AUTHorization)
+      type: object
+      properties:
+        code:
+          type: integer
+        error:
+          type: string
+    ErrorMessage:
+      type: object
+      properties:
+        code:
+          type: integer
+        error:
+          type: string
+    ErrorObject:
+      type: object
+      properties:
+        code:
+          type: integer
+        error:
+          type: object
+          additionalProperties: true
+          example:
+            nombre: "No puede ser nulo"
+            descripcion: "Longitud debe estar entre 1 y 2048"
+    ConsejeriasListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/ConsejeriaSummary"
+    ConsejeriaSummary:
+      type: object
+      required:
+        - id
+        - dir3
+        - nombre
+      properties:
+        id:
+          type: integer
+          format: int64
+        dir3:
+          type: string
+        nombre:
+          type: string
+    ConsejeriaCreate:
+      type: object
+      required:
+        - nombre
+        - dir3
+      properties:
+        dir3:
+          type: string
+          minLength: 1
+        nombre:
+          type: string
+          minLength: 1
+          maxLength: 60
+    ConsejeriaSummaryResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/ConsejeriaSummary"
+    `;
+}
     </script>
 </body>
 
