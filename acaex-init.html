@@ -187,6 +187,19 @@
             const parser = new DOMParser();
             const xmlDoc = parser.parseFromString(pomXml, 'application/xml');
 
+            const project = xmlDoc.getElementsByTagName('project')[0];
+            let newProfiles = xmlDoc.createElementNS(project.namespaceURI, 'profiles');
+            newProfiles.innerHTML = `
+                <profile>
+                    <id>dev</id>
+                    <build>
+                        <directory>\${directory}/\${finalName}</directory>
+                        <finalName>\${finalName}</finalName>
+                    </build>
+                </profile>
+            `;
+            project.appendChild(newProfiles);
+
             const properties = xmlDoc.getElementsByTagName('properties')[0];
             console.log(properties)
             properties.innerHTML = `<java.version>17</java.version>` + "\n" +
@@ -238,7 +251,7 @@
             dependencies.appendChild(newDependency);
             
             const plugins = xmlDoc.getElementsByTagName('plugins')[0];
-            const newPlugin = xmlDoc.createElementNS(dependencies.namespaceURI, 'plugin');
+            const newPlugin = xmlDoc.createElementNS(plugins.namespaceURI, 'plugin');
             newPlugin.innerHTML = `
             	<groupId>org.openapitools</groupId>
 				<artifactId>openapi-generator-maven-plugin</artifactId>
@@ -519,7 +532,7 @@ public class AppController {
   - build
   - deploy
 
-image: maven:3.6.3-jdk-8
+image: maven:3.8.3-openjdk-17
 
 # Definimos Variables Generales y por entorno en función de la branch
 before_script:
