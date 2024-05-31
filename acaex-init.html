@@ -2,179 +2,210 @@
 <html lang="en">
 
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Acaex API Initializr Project Setup</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.7.1/jszip.min.js"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Acaex API Initializr Project Setup</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.7.1/jszip.min.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css" />
 
 </head>
 
 <body>
-    <main class="container">
+  <main class="container">
 
-        <h1>Acaex API Initializr Project Setup</h1>
-        <form id="projectForm">
-            <label for="appName">Nombre de la Aplicacion(minúsculas y sin espacios):</label>
-            <input type="text" id="appName" name="appName" value="demo" required>
-            <button type="submit">Generar Proyecto</button>
-        </form>
-        <a id="downloadLink" style="display:none;">Download Project</a>
-    </main>
-    <script>
+    <h1>Acaex API Initializr Project Setup</h1>
+    <form id="projectForm">
+      <label for="appName">Nombre de la Aplicacion(minúsculas y sin espacios):</label>
+      <input type="text" id="appName" name="appName" value="demo" required>
+      <button type="submit">Generar Proyecto</button>
+    </form>
+    <a id="downloadLink" style="display:none;">Download Project</a>
+  </main>
+  <script>
 
-        document.getElementById('projectForm').addEventListener('submit', async (event) => {
-            event.preventDefault();
+    document.getElementById('projectForm').addEventListener('submit', async (event) => {
+      event.preventDefault();
 
-            const appName = document.getElementById('appName').value;
+      const appName = document.getElementById('appName').value;
 
-            const zipBlob = await downloadSpringbootInitializr(appName)
-            const zip = await unzip(zipBlob)
-            const projectFolder = await unzippedProjectFolder(zip, appName)
+      const zipBlob = await downloadSpringbootInitializr(appName)
+      const zip = await unzip(zipBlob)
+      const projectFolder = await unzippedProjectFolder(zip, appName)
 
-            handleResourcesFolder(projectFolder, appName)
-            addAppController(projectFolder, appName)
-            projectFolder.file('pom.xml', modifiedPom(projectFolder, appName));
-            projectFolder.file('.versionrc', generateVersionRc())
-            projectFolder.file('.env.properties.example', getEnvPropertiesExample())
-            projectFolder.file('.gitlab-ci.yml', getGitlabCiFileContent())
-            projectFolder.folder(`src/main/java/es/acaex/${appName}/services`)
-            projectFolder.folder(`src/main/java/es/acaex/${appName}/models`)
-            projectFolder.folder(`src/main/java/es/acaex/${appName}/repositories`)
-            addVsCodeFolder(projectFolder)
-            addScriptsFolder(projectFolder)
+      handleResourcesFolder(projectFolder, appName)
+      addAppController(projectFolder, appName)
+      projectFolder.file('pom.xml', modifiedPom(projectFolder, appName));
+      projectFolder.file('.versionrc', generateVersionRc())
+      projectFolder.file('.env.properties.example', getEnvPropertiesExample())
+      projectFolder.file('.gitlab-ci.yml', getGitlabCiFileContent())
+      projectFolder.file('.gitignore', await projectFolder.file('.gitignore').async('string') + "\n.env.properties")
+      projectFolder.folder(`src/main/java/es/acaex/${appName}/services`)
+      projectFolder.folder(`src/main/java/es/acaex/${appName}/models`)
+      projectFolder.folder(`src/main/java/es/acaex/${appName}/repositories`)
+      addVsCodeFolder(projectFolder)
+      addScriptsFolder(projectFolder)
 
-            // Re-comprimir el proyecto modificado
-            const newZipBlob = await zip.generateAsync({ type: 'blob' });
+      // Re-comprimir el proyecto modificado
+      const newZipBlob = await zip.generateAsync({ type: 'blob' });
 
-            forceDownload(newZipBlob, appName)
+      forceDownload(newZipBlob, appName)
 
-        });
+    });
 
-        function generateVersionRc() {
-            return JSON.stringify({
-                "header": "# Changelog\n\nTodos los cambios relevantes relativos al proyecto estarán aquí documentados.",
-                "types": [
-                    { "type": "feat", "section": "Funcionalidades" },
-                    { "type": "fix", "section": "Errores Corregidos" },
-                    { "type": "test", "section": "Tests", "hidden": true },
-                    { "type": "build", "section": "Sistema de Build", "hidden": true },
-                    { "type": "ci", "hidden": true }
-                ]
-            }, null, 2)
-        }
+    function generateVersionRc() {
+      return JSON.stringify({
+        "bumpFiles": [
+          {
+            "filename": "pom.xml"
+          }
+        ],
+        "packageFiles": [
+          {
+            "filename": "pom.xml"
+          }
+        ],
+        "header": "# Versiones\n\nTodos los cambios relevantes relativos al proyecto estarán aquí documentados.\n",
+        "commitUrlFormat": "https://gitlab.com/tu-usuario/tu-repositorio/commit/{{hash}}",
+        "compareUrlFormat": "../../compare/{{previousTag}}...{{currentTag}}",
+        "issueUrlFormat": "../../issues/{{id}}",
+        "types": [
+          {
+            "type": "feat",
+            "section": "Funcionalidades"
+          },
+          {
+            "type": "fix",
+            "section": "Errores Corregidos"
+          },
+          {
+            "type": "test",
+            "section": "Tests",
+            "hidden": true
+          },
+          {
+            "type": "build",
+            "section": "Sistema de Build",
+            "hidden": true
+          },
+          {
+            "type": "ci",
+            "hidden": true
+          }
+        ]
+      }, null, 2)
+    }
 
-        function blobToBase64(blob) {
-            return new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onloadend = () => resolve(reader.result);
-                reader.onerror = reject;
-                reader.readAsDataURL(blob);
-            });
-        }
+    function blobToBase64(blob) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+    }
 
-        async function getBlobFromLocalStorageOrFetch(key, url) {
-            // Comprueba si el blob ya está en localStorage
-            const savedBlob = localStorage.getItem(key);
-            if (savedBlob) {
-                // Convierte el string base64 a un blob
-                const response = await fetch(savedBlob);
-                console.log("Blob from cache")
-                return await response.blob();
-            }
+    async function getBlobFromLocalStorageOrFetch(key, url) {
+      // Comprueba si el blob ya está en localStorage
+      const savedBlob = localStorage.getItem(key);
+      if (savedBlob) {
+        // Convierte el string base64 a un blob
+        const response = await fetch(savedBlob);
+        console.log("Blob from cache")
+        return await response.blob();
+      }
 
-            // Si no está en localStorage, realiza el fetch
-            const response = await fetch(url);
-            const blob = await response.blob();
+      // Si no está en localStorage, realiza el fetch
+      const response = await fetch(url);
+      const blob = await response.blob();
 
-            // Convierte el blob a base64 y guárdalo en localStorage
-            const base64Blob = await blobToBase64(blob);
-            localStorage.setItem(key, base64Blob);
-            console.log("Blob from fetch")
-            return blob;
-        }
+      // Convierte el blob a base64 y guárdalo en localStorage
+      const base64Blob = await blobToBase64(blob);
+      localStorage.setItem(key, base64Blob);
+      console.log("Blob from fetch")
+      return blob;
+    }
 
-        function addAppController(projectFolder, appName) {
-            const controllersFolder = projectFolder
-                .folder('src')
-                .folder('main')
-                .folder('java')
-                .folder('es')
-                .folder('acaex')
-                .folder(appName)
-                .folder('controllers');
+    function addAppController(projectFolder, appName) {
+      const controllersFolder = projectFolder
+        .folder('src')
+        .folder('main')
+        .folder('java')
+        .folder('es')
+        .folder('acaex')
+        .folder(appName)
+        .folder('controllers');
 
-            controllersFolder.file('AppController.java', getAppControllerFileContent(appName));
-        }
+      controllersFolder.file('AppController.java', getAppControllerFileContent(appName));
+    }
 
-        function handleResourcesFolder(projectFolder, appName) {
-            const propertiesContent = "spring.config.import=file:.env.properties" + "\n" +
-                "app.version=local-dev" + "\n" +
-                "app.path.logs=.path/logs" + "\n" +
-                "app.env=local" + "\n"
+    function handleResourcesFolder(projectFolder, appName) {
+      const propertiesContent = "spring.config.import=file:.env.properties" + "\n" +
+        "app.version=local-dev" + "\n" +
+        "app.path.logs=.path/logs" + "\n" +
+        "app.env=local" + "\n"
 
-            const resourcesFolder = projectFolder.folder('src').folder('main').folder('resources');
-            resourcesFolder.file('application.properties', propertiesContent);
-            resourcesFolder.file('logback-spring.xml', getLogbackFileContent(appName));
-            resourcesFolder.file('openapi.yml', getOpenApiSpecificatioExample())
+      const resourcesFolder = projectFolder.folder('src').folder('main').folder('resources');
+      resourcesFolder.file('application.properties', propertiesContent);
+      resourcesFolder.file('logback-spring.xml', getLogbackFileContent(appName));
+      resourcesFolder.file('openapi.yml', getOpenApiSpecificatioExample())
 
-        }
+    }
 
-        function forceDownload(newZipBlob, appName) {
-            // Crear un enlace de descarga
-            const downloadLink = document.getElementById('downloadLink');
-            downloadLink.href = URL.createObjectURL(newZipBlob);
-            downloadLink.download = `${appName}.zip`;
-            downloadLink.style.display = 'none';
-            downloadLink.textContent = 'Download Project';
-            downloadLink.click();
-        }
+    function forceDownload(newZipBlob, appName) {
+      // Crear un enlace de descarga
+      const downloadLink = document.getElementById('downloadLink');
+      downloadLink.href = URL.createObjectURL(newZipBlob);
+      downloadLink.download = `${appName}.zip`;
+      downloadLink.style.display = 'none';
+      downloadLink.textContent = 'Download Project';
+      downloadLink.click();
+    }
 
-        async function downloadSpringbootInitializr(appName) {
-            // https://stackoverflow.com/questions/6566456/how-to-serialize-an-object-into-a-list-of-url-query-parameters
-            const options = {
-                type: "maven-project",
-                language: "java",
-                bootVersion: "3.3.0",
-                baseDir: appName,
-                groupId: "es.acaex",
-                artifactId: appName,
-                description: "Acaex Initializr for " + appName,
-                packageName: "es.acaex."+appName,
-                packaging: "war",
-                javaVersion: 17,
-                dependencies: "lombok,h2,devtools,oracle,web"
-            }
-            // Descargar el proyecto desde Spring Initializr
-            const searchParams = new URLSearchParams(options).toString();
-            console.log(`https://start.spring.io/starter.zip?${searchParams}`)
-            const url = 'https://corsproxy.io/?' + encodeURIComponent(`https://start.spring.io/starter.zip?${searchParams}`);
-            // const response = await fetch(url)
-            // console.log(response);
-            // const blob = await response.blob();
-            const blob = await getBlobFromLocalStorageOrFetch(appName, url)
-            console.log(blob)
-            return blob
-        }
+    async function downloadSpringbootInitializr(appName) {
+      // https://stackoverflow.com/questions/6566456/how-to-serialize-an-object-into-a-list-of-url-query-parameters
+      const options = {
+        type: "maven-project",
+        language: "java",
+        bootVersion: "3.3.0",
+        baseDir: appName,
+        groupId: "es.acaex",
+        artifactId: appName,
+        description: "Acaex Initializr for " + appName,
+        packageName: "es.acaex." + appName,
+        packaging: "war",
+        javaVersion: 17,
+        dependencies: "lombok,h2,devtools,oracle,web"
+      }
+      // Descargar el proyecto desde Spring Initializr
+      const searchParams = new URLSearchParams(options).toString();
+      console.log(`https://start.spring.io/starter.zip?${searchParams}`)
+      const url = 'https://corsproxy.io/?' + encodeURIComponent(`https://start.spring.io/starter.zip?${searchParams}`);
+      // const response = await fetch(url)
+      // console.log(response);
+      // const blob = await response.blob();
+      const blob = await getBlobFromLocalStorageOrFetch(appName, url)
+      console.log(blob)
+      return blob
+    }
 
-        async function unzip(blob) {
-            return await JSZip.loadAsync(blob);
-        }
+    async function unzip(blob) {
+      return await JSZip.loadAsync(blob);
+    }
 
-        async function unzippedProjectFolder(zip, appName) {
-            return zip.folder(appName);
-        }
+    async function unzippedProjectFolder(zip, appName) {
+      return zip.folder(appName);
+    }
 
-        async function modifiedPom(projectFolder, appName) {
-            console.log(projectFolder)
-            // Modificar el archivo pom.xml
-            const pomXml = await projectFolder.file('pom.xml').async('string');
-            const parser = new DOMParser();
-            const xmlDoc = parser.parseFromString(pomXml, 'application/xml');
+    async function modifiedPom(projectFolder, appName) {
+      console.log(projectFolder)
+      // Modificar el archivo pom.xml
+      const pomXml = await projectFolder.file('pom.xml').async('string');
+      const parser = new DOMParser();
+      const xmlDoc = parser.parseFromString(pomXml, 'application/xml');
 
-            const project = xmlDoc.getElementsByTagName('project')[0];
-            let newProfiles = xmlDoc.createElementNS(project.namespaceURI, 'profiles');
-            newProfiles.innerHTML = `
+      const project = xmlDoc.getElementsByTagName('project')[0];
+      let newProfiles = xmlDoc.createElementNS(project.namespaceURI, 'profiles');
+      newProfiles.innerHTML = `
                 <profile>
                     <id>dev</id>
                     <build>
@@ -183,61 +214,61 @@
                     </build>
                 </profile>
             `;
-            project.appendChild(newProfiles);
+      project.appendChild(newProfiles);
 
-            const properties = xmlDoc.getElementsByTagName('properties')[0];
-            console.log(properties)
-            properties.innerHTML = `<java.version>17</java.version>` + "\n" +
-                `<finalName>${appName}</finalName>` + "\n" +
-                `<directory>/var/data</directory>`
+      const properties = xmlDoc.getElementsByTagName('properties')[0];
+      console.log(properties)
+      properties.innerHTML = `<java.version>17</java.version>` + "\n" +
+        `<finalName>${appName}</finalName>` + "\n" +
+        `<directory>/var/data</directory>`
 
-            // Aquí puedes hacer las modificaciones necesarias al pom.xml
-            const dependencies = xmlDoc.getElementsByTagName('dependencies')[0];
-            // https://stackoverflow.com/questions/13220095/remove-unwanted-empty-xmlns-attribute-added-by-appendchild
-            let newDependency = xmlDoc.createElementNS(dependencies.namespaceURI, 'dependency');
-            newDependency.innerHTML = `
+      // Aquí puedes hacer las modificaciones necesarias al pom.xml
+      const dependencies = xmlDoc.getElementsByTagName('dependencies')[0];
+      // https://stackoverflow.com/questions/13220095/remove-unwanted-empty-xmlns-attribute-added-by-appendchild
+      let newDependency = xmlDoc.createElementNS(dependencies.namespaceURI, 'dependency');
+      newDependency.innerHTML = `
                 <groupId>org.springdoc</groupId>
                 <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
                 <version>2.3.0</version>
             `;
-            dependencies.appendChild(newDependency);
+      dependencies.appendChild(newDependency);
 
-            newDependency = xmlDoc.createElementNS(dependencies.namespaceURI, 'dependency');
-            newDependency.innerHTML = `
+      newDependency = xmlDoc.createElementNS(dependencies.namespaceURI, 'dependency');
+      newDependency.innerHTML = `
                 <groupId>javax.validation</groupId>
                 <artifactId>validation-api</artifactId>
                 <version>2.0.1.Final</version>
             `;
-            dependencies.appendChild(newDependency);
+      dependencies.appendChild(newDependency);
 
-            newDependency = xmlDoc.createElementNS(dependencies.namespaceURI, 'dependency');
-            newDependency.innerHTML = `
+      newDependency = xmlDoc.createElementNS(dependencies.namespaceURI, 'dependency');
+      newDependency.innerHTML = `
                 <groupId>org.openapitools</groupId>
                 <artifactId>jackson-databind-nullable</artifactId>
                 <version>0.2.6</version>
             `;
-            dependencies.appendChild(newDependency);
+      dependencies.appendChild(newDependency);
 
-            newDependency = xmlDoc.createElementNS(dependencies.namespaceURI, 'dependency');
-            newDependency.innerHTML = `
+      newDependency = xmlDoc.createElementNS(dependencies.namespaceURI, 'dependency');
+      newDependency.innerHTML = `
                 <groupId>javax.annotation</groupId>
                 <artifactId>javax.annotation-api</artifactId>
                 <version>1.3.2</version>
             `;
-            dependencies.appendChild(newDependency);
+      dependencies.appendChild(newDependency);
 
-            newDependency = xmlDoc.createElementNS(dependencies.namespaceURI, 'dependency');
-            newDependency.innerHTML = `
+      newDependency = xmlDoc.createElementNS(dependencies.namespaceURI, 'dependency');
+      newDependency.innerHTML = `
                 <groupId>javax.servlet</groupId>
                 <artifactId>servlet-api</artifactId>
                 <version>2.5</version>
                 <scope>provided</scope>
             `;
-            dependencies.appendChild(newDependency);
-            
-            const plugins = xmlDoc.getElementsByTagName('plugins')[0];
-            const newPlugin = xmlDoc.createElementNS(plugins.namespaceURI, 'plugin');
-            newPlugin.innerHTML = `
+      dependencies.appendChild(newDependency);
+
+      const plugins = xmlDoc.getElementsByTagName('plugins')[0];
+      const newPlugin = xmlDoc.createElementNS(plugins.namespaceURI, 'plugin');
+      newPlugin.innerHTML = `
             	<groupId>org.openapitools</groupId>
 				<artifactId>openapi-generator-maven-plugin</artifactId>
 				<version>7.5.0</version>
@@ -260,85 +291,85 @@
 							</configOptions>
 						</configuration>
 					</execution>
-				</executions>` 
-                plugins.appendChild(newPlugin);
-                
-            console.log(xmlDoc)
-            // Serializar el XML modificado
-            const serializer = new XMLSerializer();
-            const newPomXml = serializer.serializeToString(xmlDoc);
-            //console.log(newPomXml)
-            //projectFolder.file('pom.xml', newPomXml);
-            // No me funciona si lo hago aqui dentro
-            //projectFolder.file(appName + 'pom.xml', newPomXml);
-            //projectFolder.file(appName + 'poma.xml', newPomXml);
-            return newPomXml;
-        }
+				</executions>`
+      plugins.appendChild(newPlugin);
 
-        async function addVsCodeFolder(projectFolder) {
-            // Añadir archivos adicionales
-            const vscodeFolder = projectFolder.folder('.vscode');
-            vscodeFolder.file('tasks.json', JSON.stringify({
-                "version": "2.0.0",
-                "tasks": [
-                    {
-                        "label": "setup_environment",
-                        "type": "shell",
-                        "command": "./scripts/setup.bat",
-                        "runOptions": {
-                            "runOn": "folderOpen"
-                        },
-                        "problemMatcher": []
-                    },
-                    {
-                        "label": "spring_boot_run",
-                        "type": "shell",
-                        "command": ".\\mvnw clean spring-boot:run",
-                        "problemMatcher": []
-                    },
-                    {
-                        "label": "bump_version",
-                        "type": "shell",
-                        "command": "if (Get-Command commit-and-tag-version -ErrorAction SilentlyContinue) { commit-and-tag-version --packageFiles pom.xml --bumpFiles pom.xml } else { Write-Host 'commit-and-tag-version no está instalado en el sistema.' }",
-                        "problemMatcher": []
-                    }
-                ],
-            }, null, 2));
+      console.log(xmlDoc)
+      // Serializar el XML modificado
+      const serializer = new XMLSerializer();
+      const newPomXml = serializer.serializeToString(xmlDoc);
+      //console.log(newPomXml)
+      //projectFolder.file('pom.xml', newPomXml);
+      // No me funciona si lo hago aqui dentro
+      //projectFolder.file(appName + 'pom.xml', newPomXml);
+      //projectFolder.file(appName + 'poma.xml', newPomXml);
+      return newPomXml;
+    }
 
-            vscodeFolder.file('settings.json', JSON.stringify({
-                "VsCodeTaskButtons.showCounter": false,
-                "VsCodeTaskButtons.tasks": [
-                    {
-                        "label": "$(testing-run-icon) Spring-Boot:Run",
-                        "task": "spring_boot_run",
-                        "tooltip": "Ejecutar mvn spring-boot:run."
-                    },
-                    {
-                        "label": "$(versions) Nueva Versión",
-                        "task": "bump_version",
-                        "tooltip": "Tarea para aumentar de version y etiquetar en git correctamente."
-                    }
-                ],
-                "java.compile.nullAnalysis.mode": "automatic"
-            }, null, 2));
+    async function addVsCodeFolder(projectFolder) {
+      // Añadir archivos adicionales
+      const vscodeFolder = projectFolder.folder('.vscode');
+      vscodeFolder.file('tasks.json', JSON.stringify({
+        "version": "2.0.0",
+        "tasks": [
+          {
+            "label": "setup_environment",
+            "type": "shell",
+            "command": "./scripts/setup.bat",
+            "runOptions": {
+              "runOn": "folderOpen"
+            },
+            "problemMatcher": []
+          },
+          {
+            "label": "spring_boot_run",
+            "type": "shell",
+            "command": ".\\mvnw clean spring-boot:run",
+            "problemMatcher": []
+          },
+          {
+            "label": "bump_version",
+            "type": "shell",
+            "command": "if (Get-Command commit-and-tag-version -ErrorAction SilentlyContinue) { commit-and-tag-version } else { Write-Host 'commit-and-tag-version no está instalado en el sistema.' }",
+            "problemMatcher": []
+          }
+        ],
+      }, null, 2));
 
-            vscodeFolder.file('extensions.json', JSON.stringify({
-                "recommendations": [
-                    "vscjava.vscode-java-pack",
-                    "vmware.vscode-boot-dev-pack",
-                    "vscode-icons-team.vscode-icons",
-                    "spencerwmiles.vscode-task-buttons"
-                ]
-            }, null, 2));
-        }
+      vscodeFolder.file('settings.json', JSON.stringify({
+        "VsCodeTaskButtons.showCounter": false,
+        "VsCodeTaskButtons.tasks": [
+          {
+            "label": "$(testing-run-icon) Spring-Boot:Run",
+            "task": "spring_boot_run",
+            "tooltip": "Ejecutar mvn spring-boot:run."
+          },
+          {
+            "label": "$(versions) Nueva Versión",
+            "task": "bump_version",
+            "tooltip": "Tarea para aumentar de version y etiquetar en git correctamente."
+          }
+        ],
+        "java.compile.nullAnalysis.mode": "automatic"
+      }, null, 2));
 
-        async function addScriptsFolder(projectFolder) {
-            const scriptsFolder = projectFolder.folder('scripts');
-            scriptsFolder.file('setup.bat', getSetupScriptContent(), { unixPermissions: "755" });
-        }
+      vscodeFolder.file('extensions.json', JSON.stringify({
+        "recommendations": [
+          "vscjava.vscode-java-pack",
+          "vmware.vscode-boot-dev-pack",
+          "vscode-icons-team.vscode-icons",
+          "spencerwmiles.vscode-task-buttons"
+        ]
+      }, null, 2));
+    }
 
-        function getSetupScriptContent() {
-            return `@echo off
+    async function addScriptsFolder(projectFolder) {
+      const scriptsFolder = projectFolder.folder('scripts');
+      scriptsFolder.file('setup.bat', getSetupScriptContent(), { unixPermissions: "755" });
+    }
+
+    function getSetupScriptContent() {
+      return `@echo off
 setlocal
 
 REM Comprueba si .env.properties existe
@@ -359,10 +390,10 @@ if not exist ".env.properties" (
 REM Comprueba si el comando commit-and-tag-version está instalado
 where commit-and-tag-version >nul 2>&1
 if %errorlevel% neq 0 (
-    REM Comprueba si Node.js está instalado
+    REM Comprueba si Node.js esta instalado
     where node >nul 2>&1
     if %errorlevel% neq 0 (
-        echo Node.js no está instalado. Por favor, instala Node.js primero.
+        echo Node.js no esta instalado. Por favor, instala Node.js primero.
         exit /b 1
     ) else (
         echo Instalando commit-and-tag-version...
@@ -390,8 +421,8 @@ if not exist ".git" (
     )
     
     REM Crear la primera versión
-    echo Creando la primera versión con commit-and-tag-version...
-    commit-and-tag-version --packageFiles pom.xml --bumpFiles pom.xml
+    echo Creando la primera version con commit-and-tag-version...
+    commit-and-tag-version --release-as 0.1.0
     if %errorlevel% neq 0 (
         echo Error al crear la primera versión.
         exit /b 1
@@ -402,10 +433,10 @@ echo Setup completado.
 endlocal
 exit /b 0`
 
-        }
+    }
 
-        function getLogbackFileContent(appName) {
-            return `<?xml version="1.0" encoding="UTF-8"?>
+    function getLogbackFileContent(appName) {
+      return `<?xml version="1.0" encoding="UTF-8"?>
 <configuration debug="false">
 
 	<property resource="application.properties" />
@@ -447,10 +478,10 @@ exit /b 0`
 		<appender-ref ref="RollingFile" />
 	</root>
 </configuration>`
-        }
+    }
 
-        function getAppControllerFileContent(appName) {
-            return `package es.acaex.${appName}.controllers;
+    function getAppControllerFileContent(appName) {
+      return `package es.acaex.${appName}.controllers;
 
             import java.io.BufferedReader;
 import java.io.IOException;
@@ -509,10 +540,10 @@ public class AppController {
     }
 
 }`
-        }
+    }
 
-        function getGitlabCiFileContent() {
-            return `stages:
+    function getGitlabCiFileContent() {
+      return `stages:
   - test
   - build
   - deploy
@@ -633,10 +664,10 @@ deploy:
     - ssh $INTEGRATION_USER@$DEPLOY_SERVER "cd $WLPATH && /opt/jdk1.8.0_281/bin/java -cp weblogic.jar weblogic.Deployer -verbose -noexit -adminurl t3://$DEPLOY_SERVER:7001 -username $WEBLOGIC_USER -password $WEBLOGIC_PASS -targets \${SERVERNAME} -source /var/www/\${APPNAME}/actualizaciones/$COMMIT_TIME/$APPNAME.war -stage -deploy -timeout 300 -name $APPNAME && exit"
   when: on_success
   needs: [build]`
-        }
+    }
 
-        function getEnvPropertiesExample() {
-            return `# OpenAPI
+    function getEnvPropertiesExample() {
+      return `# OpenAPI
 springdoc.swagger-ui.url=/openapi.yml
 
 # Base de Datos
@@ -676,10 +707,10 @@ visado.entorno=
 # spring.mail.properties.mail.smtp.starttls.enable=false
 # spring.mail.properties.mail.debug=true
 `
-        }
+    }
 
-        function getOpenApiSpecificatioExample() {
-    return `openapi: "3.0.0"
+    function getOpenApiSpecificatioExample() {
+      return `openapi: "3.0.0"
 info:
   version: 0.1.0
   title: Peticiones de Gabinete de Prensa
@@ -832,8 +863,8 @@ components:
         data:
           $ref: "#/components/schemas/ConsejeriaSummary"
     `;
-}
-    </script>
+    }
+  </script>
 </body>
 
 </html>
