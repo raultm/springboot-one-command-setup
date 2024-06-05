@@ -361,6 +361,181 @@
           "spencerwmiles.vscode-task-buttons"
         ]
       }, null, 2));
+
+      vscodeFolder.file('acaex.code-snippets', JSON.stringify({
+        // Place your global snippets here. Each snippet is defined under a snippet name and has a scope, prefix, body and 
+        // description. Add comma separated ids of the languages where the snippet is applicable in the scope field. If scope 
+        // is left empty or omitted, the snippet gets applied to all languages. The prefix is what is 
+        // used to trigger the snippet and the body will be expanded and inserted. Possible variables are: 
+        // $1, $2 for tab stops, $0 for the final cursor position, and ${1:label}, ${2:another} for placeholders. 
+        // Placeholders with the same ids are connected.
+        // Example:
+        // "Print to console": {
+        // 	"scope": "javascript,typescript",
+        // 	"prefix": "log",
+        // 	"body": [
+        // 		"console.log('$1');",
+        // 		"$2"
+        // 	],
+        // 	"description": "Log output to console"
+        // }
+        "Entity": {
+          "scope": "java",
+          "prefix": "ex-entity",
+          "body": [
+            "import jakarta.persistence.Entity;",
+            "import jakarta.persistence.GeneratedValue;",
+            "import jakarta.persistence.GenerationType;",
+            "import jakarta.persistence.Id;",
+            "import lombok.AllArgsConstructor;",
+            "import lombok.Builder;",
+            "import lombok.Data;",
+            "import lombok.NoArgsConstructor;",
+            "",
+            "@Entity(name = \"$2\")\t",
+            "@Data  ",
+            "@Builder",
+            "@AllArgsConstructor",
+            "@NoArgsConstructor",
+            "public class $1 {",
+            "",
+            "\t@Id",
+            "\t@GeneratedValue(strategy = GenerationType.IDENTITY)",
+            "\tprivate Long id;",
+            "",
+            "\tprivate String nombre;",
+            "}"
+          ]
+        },
+        "EntitiesRepository": {
+          "scope": "java",
+          "prefix": "ex-repository",
+          "body": [
+            "import org.springframework.data.jpa.repository.JpaRepository;",
+            "import es.acaex.inventarioprueba.models.$2;",
+            "",
+            "public interface $1 extends JpaRepository<$2, Long> {",
+            "\t",
+            "}"
+          ]
+        },
+        "openapi-endpoint": {
+          "scope": "yaml",
+          "prefix": "ex-openapi-endpoint",
+          "body": [
+            "/$1:",
+            "\tget:",
+            "\t\tsummary: Listado de $2 en la aplicación",
+            "\t\toperationId: listar$2",
+            "\t\ttags:",
+            "\t\t- $1",
+            "\t\tresponses:",
+            "\t\t\t\"200\":",
+            "\t\t\t\tdescription: Listado completo de $2",
+            "\t\t\t\tcontent:",
+            "\t\t\t\t\tapplication/json:",
+            "\t\t\t\t\t\tschema:",
+            "\t\t\t\t\t\t\\$ref: \"#/components/schemas/$2ListResponse\"",
+            "\t\t\t\"401\":",
+            "\t\t\t\tdescription: El usuario no está autenticado",
+            "\t\t\t\tcontent:",
+            "\t\t\t\t\tapplication/json:",
+            "\t\t\t\t\t\tschema:",
+            "\t\t\t\t\t\t\t\\$ref: \"#/components/schemas/NoAuthError\"",
+            "\t\t\t\"403\":",
+            "\t\t\t\tdescription: El usuario no tiene permisos para acceder a este recurso",
+            "\t\t\t\tcontent:",
+            "\t\t\t\t\tapplication/json:",
+            "\t\t\t\t\t\tschema:",
+            "\t\t\t\t\t\t\t\\$ref: \"#/components/schemas/NoAuthError\"",
+            "\tpost:",
+            "\t\tsummary: Crear $3",
+            "\t\toperationId: crear$3",
+            "\t\ttags:",
+            "\t\t- $1",
+            "\t\trequestBody:",
+            "\t\t\tdescription: Crear una nueva $3 en la Aplicación",
+            "\t\t\tcontent:",
+            "\t\t\t\tapplication/json:",
+            "\t\t\t\t\tschema:",
+            "\t\t\t\t\t\t\\$ref: \"#/components/schemas/$3Create\"",
+            "\t\tresponses:",
+            "\t\t\t\"201\":",
+            "\t\t\t\tdescription: Consejería creada correctamente",
+            "\t\t\t\tcontent:",
+            "\t\t\t\t\tapplication/json:",
+            "\t\t\t\t\t\tschema:",
+            "\t\t\t\t\t\t\\$ref: \"#/components/schemas/$3DetailResponse\"",
+            "\t\t\t\"400\":",
+            "\t\t\t\tdescription: La información ofrecida es incorrecta",
+            "\t\t\t\tcontent:",
+            "\t\t\t\t\tapplication/json:",
+            "\t\t\t\t\t\tschema:",
+            "\t\t\t\t\t\t\t\\$ref: \"#/components/schemas/ErrorObject\"",
+            "\t\t\t\"401\":",
+            "\t\t\t\tdescription: El usuario no está autenticado",
+            "\t\t\t\tcontent:",
+            "\t\t\t\t\tapplication/json:",
+            "\t\t\t\t\t\tschema:",
+            "\t\t\t\t\t\t\\$ref: \"#/components/schemas/NoAuthError\"",
+            "\t\t\t\"403\":",
+            "\t\t\t\tdescription: El usuario no tiene permisos para acceder a este recurso",
+            "\t\t\t\tcontent:",
+            "\t\t\t\t\tapplication/json:",
+            "\t\t\t\t\t\tschema:",
+            "\t\t\t\t\t\t\\$ref: \"#/components/schemas/NoAuthError\""
+          ]
+        },
+        "openApiEntitySchemas": {
+          "scope": "yaml",
+          "prefix": "ex-openapi-schemas",
+          "body": [
+            "${1:Plural}ListResponse:",
+            "\ttype: object",
+            "\tproperties:",
+            "\t\tdata:",
+            "\t\t\ttype: array",
+            "\t\t\titems:",
+            "\t\t\t\t\\$ref: \"#/components/schemas/${2:Singular}Summary\"",
+            "$2DetailResponse:",
+            "\ttype: object",
+            "\tproperties:",
+            "\t\tdata:",
+            "\t\t\t\\$ref: \"#/components/schemas/$2Detail\"",
+            "$2Summary:",
+            "\ttype: object",
+            "\trequired:",
+            "\t\t- id",
+            "\t\t- nombre",
+            "\tproperties:",
+            "\t\tid:",
+            "\t\t\ttype: integer",
+            "\t\t\tformat: int64",
+            "\t\tnombre:",
+            "\t\t\ttype: string",
+            "$2Detail:",
+            "\ttype: object",
+            "\trequired:",
+            "\t\t- id",
+            "\t\t- nombre",
+            "\tproperties:",
+            "\t\tid:",
+            "\t\t\ttype: integer",
+            "\t\t\tformat: int64",
+            "\t\tnombre:",
+            "\t\t\ttype: string",
+            "$2Create:",
+            "\ttype: object",
+            "\trequired:",
+            "\t\t- nombre",
+            "\tproperties:",
+            "\t\tnombre:",
+            "\t\t\ttype: string",
+            "\t\t\tminLength: 1",
+            "\t\t\tmaxLength: 60"
+          ]
+        },
+      }))
     }
 
     async function addScriptsFolder(projectFolder) {
