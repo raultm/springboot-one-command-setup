@@ -773,6 +773,9 @@ before_script:
   - echo $CONFIGPATH
   - echo $SERVERNAME
   - echo $LOGSPATH
+  - |
+    [ -z "$DEPLOY_SERVER" ] || [ -z "$WLPATH" ] || [ -z "$CONFIGPATH" ] || [ -z "$SERVERNAME" ] || [ -z "$LOGSPATH" ] && { echo "Error: Una o más variables están vacías."; exit 1; }
+
 
 
 # Tests creados por el equipo para el proyecto
