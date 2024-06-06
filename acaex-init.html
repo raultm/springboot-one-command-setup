@@ -147,7 +147,7 @@
       const resourcesFolder = projectFolder.folder('src').folder('main').folder('resources');
       resourcesFolder.file('application.properties', propertiesContent);
       resourcesFolder.file('logback-spring.xml', getLogbackFileContent(appName));
-      resourcesFolder.file('openapi.yml', getOpenApiSpecificatioExample())
+      resourcesFolder.file('openapi.yml', getOpenApiSpecificatioExample(appName))
 
     }
 
@@ -896,11 +896,11 @@ visado.entorno=
 `
     }
 
-    function getOpenApiSpecificatioExample() {
+    function getOpenApiSpecificatioExample(appName) {
       return `openapi: "3.0.0"
 info:
   version: 0.1.0
-  title: Peticiones de Gabinete de Prensa
+  title: ${appName}
 servers:
   - url: http://localhost:8080
     description: Servidor local de desarrollo
