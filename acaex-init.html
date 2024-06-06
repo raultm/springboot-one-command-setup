@@ -38,7 +38,7 @@
       projectFolder.file('.versionrc', generateVersionRc())
       projectFolder.file('.env.properties.example', getEnvPropertiesExample())
       projectFolder.file('.gitlab-ci.yml', getGitlabCiFileContent())
-      projectFolder.file('.gitignore', await projectFolder.file('.gitignore').async('string') + "\n.env.properties")
+      projectFolder.file('.gitignore', (await projectFolder.file('.gitignore').async('string')).replace(".vscode/", "") + "\n.env.properties" + "\n*.db")
       projectFolder.folder(`src/main/java/es/acaex/${appName}/services`)
       projectFolder.folder(`src/main/java/es/acaex/${appName}/models`)
       projectFolder.folder(`src/main/java/es/acaex/${appName}/repositories`)
