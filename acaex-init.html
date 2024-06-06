@@ -332,6 +332,12 @@
             "type": "shell",
             "command": "if (Get-Command commit-and-tag-version -ErrorAction SilentlyContinue) { commit-and-tag-version } else { Write-Host 'commit-and-tag-version no está instalado en el sistema.' }",
             "problemMatcher": []
+          },
+          {
+            "label": "commit",
+            "type": "shell",
+            "command": "${command:extension.conventionalCommits}",
+            "problemMatcher": []
           }
         ],
       }, null, 2));
@@ -348,6 +354,11 @@
             "label": "$(versions) Nueva Versión",
             "task": "bump_version",
             "tooltip": "Tarea para aumentar de version y etiquetar en git correctamente."
+          },
+          {
+            "label": "$(git-commit) Nuevo Commit",
+            "task": "commit",
+            "tooltip": "Tarea para generar mensaje de commit."
           }
         ],
         "java.compile.nullAnalysis.mode": "automatic"
@@ -358,7 +369,8 @@
           "vscjava.vscode-java-pack",
           "vmware.vscode-boot-dev-pack",
           "vscode-icons-team.vscode-icons",
-          "spencerwmiles.vscode-task-buttons"
+          "spencerwmiles.vscode-task-buttons",
+          "vivaxy.vscode-conventional-commits"
         ]
       }, null, 2));
 
