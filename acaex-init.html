@@ -57,6 +57,7 @@
       projectFolder.file('.gitignore', (await projectFolder.file('.gitignore').async('string')).replace(".vscode/", "") + "\n.env.properties" + "\n*.db")
       projectFolder.folder(`src/main/java/es/acaex/${appName}/services`)
       projectFolder.folder(`src/main/java/es/acaex/${appName}/models`)
+      projectFolder.folder(`src/main/java/es/acaex/${appName}/models/mappers`)
       projectFolder.folder(`src/main/java/es/acaex/${appName}/repositories`)
       projectFolder.folder(`src/main/java/es/acaex/${appName}/controllers`)
       addVsCodeFolder(projectFolder, appName)
@@ -261,7 +262,9 @@
       console.log(properties)
       properties.innerHTML = `<java.version>17</java.version>` + "\n" +
         `<finalName>${appName}</finalName>` + "\n" +
-        `<directory>/var/data</directory>`
+        `<directory>/var/data</directory>` + "\n" +
+        `<org.mapstruct.version>1.5.5.Final</org.mapstruct.version>` + "\n" +
+        `<org.projectlombok.version>1.18.32</org.projectlombok.version>` 
 
       // Aquí puedes hacer las modificaciones necesarias al pom.xml
       const dependencies = xmlDoc.getElementsByTagName('dependencies')[0];
@@ -309,6 +312,15 @@
 
       newDependency = xmlDoc.createElementNS(dependencies.namespaceURI, 'dependency');
       newDependency.innerHTML = `
+                <groupId>org.mapstruct</groupId>
+                <artifactId>mapstruct</artifactId>
+                <version>\${org.mapstruct.version}</version>
+                <scope>provided</scope>
+            `;
+      dependencies.appendChild(newDependency);
+
+      newDependency = xmlDoc.createElementNS(dependencies.namespaceURI, 'dependency');
+      newDependency.innerHTML = `
                 <groupId>es.acaex</groupId>
                 <artifactId>jwt_visado</artifactId>
                 <version>0.2.2</version>
@@ -342,6 +354,31 @@
 					</execution>
 				</executions>`
       plugins.appendChild(newPlugin);
+
+
+      const newPlugin2 = xmlDoc.createElementNS(plugins.namespaceURI, 'plugin');
+      newPlugin2.innerHTML = `
+            	<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-compiler-plugin</artifactId>
+				<version>3.8.1</version>
+				<configuration>
+					<source>1.8</source>
+					<target>1.8</target>
+					<annotationProcessorPaths>
+						<path>
+							<groupId>org.projectlombok</groupId>
+							<artifactId>lombok</artifactId>
+							<version>\${org.projectlombok.version}</version>
+						</path>
+						<path>
+							<groupId>org.mapstruct</groupId>
+							<artifactId>mapstruct-processor</artifactId>
+							<version>\${org.mapstruct.version}</version>
+						</path>
+
+					</annotationProcessorPaths>
+				</configuration>`
+      plugins.appendChild(newPlugin2);
 
       console.log(xmlDoc)
       // Serializar el XML modificado
