@@ -42,7 +42,7 @@
       projectFolder.folder(`src/main/java/es/acaex/${appName}/services`)
       projectFolder.folder(`src/main/java/es/acaex/${appName}/models`)
       projectFolder.folder(`src/main/java/es/acaex/${appName}/repositories`)
-      addVsCodeFolder(projectFolder)
+      addVsCodeFolder(projectFolder, appName)
       addScriptsFolder(projectFolder)
 
       // Re-comprimir el proyecto modificado
@@ -324,7 +324,7 @@
       return newPomXml;
     }
 
-    async function addVsCodeFolder(projectFolder) {
+    async function addVsCodeFolder(projectFolder, appName) {
       // Añadir archivos adicionales
       const vscodeFolder = projectFolder.folder('.vscode');
       vscodeFolder.file('tasks.json', JSON.stringify({
@@ -411,7 +411,7 @@
         // }
         "Entity": {
           "scope": "java",
-          "prefix": "ex-entity",
+          "prefix": "jex-entity",
           "body": [
             "import jakarta.persistence.Entity;",
             "import jakarta.persistence.GeneratedValue;",
@@ -439,10 +439,10 @@
         },
         "EntitiesRepository": {
           "scope": "java",
-          "prefix": "ex-repository",
+          "prefix": "jex-repository",
           "body": [
             "import org.springframework.data.jpa.repository.JpaRepository;",
-            "import es.acaex.inventarioprueba.models.$2;",
+            "import es.acaex." + appName + ".models.$2;",
             "",
             "public interface $1 extends JpaRepository<$2, Long> {",
             "\t",
