@@ -79,6 +79,7 @@
       projectFolder.file(`src/main/resources/db/migration/h2/V1_0_0__consejerias_create_table.sql`, getFlywayH2Table())
       projectFolder.file(`src/main/resources/db/migration/oracle/V1_0_0__consejerias_create_table.sql`, getFlywayOracleTable())
       projectFolder.file(`src/main/java/es/acaex/${appName}/models/Consejeria.java`, getConsejeriaEntity(appName))
+      projectFolder.file(`src/main/java/es/acaex/${appName}/models/mappers/ConsejeriasMapper.java`, getConsejeriasMapper(appName))
       projectFolder.file(`src/main/java/es/acaex/${appName}/repositories/ConsejeriasRepository.java`, getConsejeriaRepository(appName))
       projectFolder.file(`src/main/java/es/acaex/${appName}/controllers/ConsejeriasController.java`, getConsejeriaController(appName))
       projectFolder.file(`src/main/java/es/acaex/${appName}/services/consejerias/FindAllConsejeriaService.java`, getConsejeriasService(appName))
@@ -362,8 +363,8 @@
 				<artifactId>maven-compiler-plugin</artifactId>
 				<version>3.8.1</version>
 				<configuration>
-					<source>1.8</source>
-					<target>1.8</target>
+					<source>17</source>
+					<target>17</target>
 					<annotationProcessorPaths>
 						<path>
 							<groupId>org.projectlombok</groupId>
@@ -1232,26 +1233,16 @@ import es.acaex.${appName}.repositories.ConsejeriasRepository;
 public class FindAllConsejeriaService {
 
     @Autowired ConsejeriasRepository consejeriasRepository;
+    @Autowired ConsejeriasMapper consejeriasMapper;
 
     public ResponseEntity<ConsejeriasListResponse> response() {
-        return ResponseEntity.ok().body(execute());
+        return ResponseEntity.ok().body(consejeriasMapper.consejeriasListToConsejeriasListResponse(execute()));
     }
 
-    private ConsejeriasListResponse execute() {
-        return new ConsejeriasListResponse()
-            .data(consejeriasRepository.findAll().stream().map(this::consejeriaToConsejeriaSummary).toList())
-        ;
+    private List<Consejeria> execute() {
+        return consejeriasRepository.findAll();
     }
 
-    private ConsejeriaSummary consejeriaToConsejeriaSummary(Consejeria consejeria){
-        return new ConsejeriaSummary()
-            .id(consejeria.getId())
-            .dir3(consejeria.getDir3())
-            .nombre(consejeria.getNombre())
-        ;
-    }
-    
-    
 }
 `;  
     }
@@ -1275,6 +1266,31 @@ public class ConsejeriasController implements ConsejeriasApiDelegate{
     @Override
     public ResponseEntity<ConsejeriasListResponse> listarConsejerias() {
         return findAllConsejeriaService.response();
+    }
+}
+`;
+    }
+    
+    function getConsejeriasMapper(appName) {
+      return `package es.acaex.${appName}.models.mappers;
+
+import java.util.List;
+
+import org.mapstruct.Mapper;
+
+import es.acaex.${appName}.dto.ConsejeriaSummary;
+import es.acaex.${appName}.dto.ConsejeriasListResponse;
+import es.acaex.${appName}.models.Consejeria;
+
+@Mapper(componentModel = "spring")
+public interface ConsejeriasMapper {
+    
+    ConsejeriaSummary consejeriaToConsejeriaSummary(Consejeria consejeria);
+
+    default ConsejeriasListResponse consejeriasListToConsejeriasListResponse(List<Consejeria> consejerias) {
+        return new ConsejeriasListResponse()
+            .data(consejerias.stream().map(this::consejeriaToConsejeriaSummary).toList())
+        ;
     }
 }
 `;
