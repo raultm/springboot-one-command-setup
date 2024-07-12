@@ -1220,6 +1220,8 @@ public interface ConsejeriasRepository extends JpaRepository<Consejeria, Long> {
     function getConsejeriasService(appName) {
       return `package es.acaex.${appName}.services.consejerias;
 
+import java.util.List;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
