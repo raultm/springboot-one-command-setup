@@ -7,7 +7,17 @@
   <title>Acaex API Initializr Project Setup</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.7.1/jszip.min.js"></script>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css" />
-
+  <style>
+    /* Estilos adicionales para el checkbox */
+    .checkbox-container {
+      display: flex;
+      align-items: center;
+      padding:20px;
+    }
+    .checkbox-container input {
+      margin-right: 10px;
+    }
+  </style>
 </head>
 
 <body>
@@ -17,6 +27,10 @@
     <form id="projectForm">
       <label for="appName">Nombre de la Aplicacion(minúsculas y sin espacios):</label>
       <input type="text" id="appName" name="appName" value="demo" required>
+      <div class="checkbox-container">
+        <input type="checkbox" id="addTestData" name="addTestData">
+        <label for="addTestData">Añadir datos de prueba</label>
+      </div>
       <button type="submit">Generar Proyecto</button>
     </form>
     <a id="downloadLink" style="display:none;">Download Project</a>
@@ -27,6 +41,8 @@
       event.preventDefault();
 
       const appName = document.getElementById('appName').value;
+      const addTestData = document.getElementById('addTestData').checked;
+      console.log(appName, addTestData)
 
       const zipBlob = await downloadSpringbootInitializr(appName)
       const zip = await unzip(zipBlob)
@@ -42,8 +58,13 @@
       projectFolder.folder(`src/main/java/es/acaex/${appName}/services`)
       projectFolder.folder(`src/main/java/es/acaex/${appName}/models`)
       projectFolder.folder(`src/main/java/es/acaex/${appName}/repositories`)
+      projectFolder.folder(`src/main/java/es/acaex/${appName}/controllers`)
       addVsCodeFolder(projectFolder, appName)
       addScriptsFolder(projectFolder)
+
+      if(addTestData) {
+        addWholeExampleofData(projectFolder, appName)
+      }
 
       // Re-comprimir el proyecto modificado
       const newZipBlob = await zip.generateAsync({ type: 'blob' });
@@ -51,6 +72,16 @@
       forceDownload(newZipBlob, appName)
 
     });
+
+    function addWholeExampleofData(projectFolder, appName) {
+      projectFolder.file(`src/main/resources/db/migration/common/V1_0_1__consejerias_insert_data.sql`, getFlywayData())
+      projectFolder.file(`src/main/resources/db/migration/h2/V1_0_0__consejerias_create_table.sql`, getFlywayH2Table())
+      projectFolder.file(`src/main/resources/db/migration/oracle/V1_0_0__consejerias_create_table.sql`, getFlywayOracleTable())
+      projectFolder.file(`src/main/java/es/acaex/${appName}/models/Consejeria.java`, getConsejeriaEntity(appName))
+      projectFolder.file(`src/main/java/es/acaex/${appName}/repositories/ConsejeriasRepository.java`, getConsejeriaRepository(appName))
+      projectFolder.file(`src/main/java/es/acaex/${appName}/controllers/ConsejeriasController.java`, getConsejeriaController(appName))
+      projectFolder.file(`src/main/java/es/acaex/${appName}/services/consejerias/FindAllConsejeriaService.java`, getConsejeriasService(appName))
+    }
 
     function generateVersionRc() {
       return JSON.stringify({
@@ -174,7 +205,7 @@
         packageName: "es.acaex." + appName,
         packaging: "war",
         javaVersion: 17,
-        dependencies: "lombok,h2,devtools,oracle,web,jpa"
+        dependencies: "lombok,h2,devtools,oracle,web,jpa,flyway"
       }
       // Descargar el proyecto desde Spring Initializr
       const searchParams = new URLSearchParams(options).toString();
@@ -883,12 +914,18 @@ spring.datasource.url=jdbc:h2:file:./database
 spring.datasource.username=sa
 spring.datasource.password=sa
 spring.datasource.driver-class-name=org.h2.Driver
-spring.jpa.hibernate.ddl-auto=create
-spring.jpa.database-platform=org.hibernate.dialect.H2Dialect
-spring.jpa.hibernate.use-new-id-generator-mappings=false
+
+# No habilitar los metodos ddl-auto create o update con flyway.
+# spring.jpa.hibernate.ddl-auto=update
+# spring.flyway.enable=false
+
+# Seleccionar las migraciones en función del driver de base de datos escogidos
+spring.flyway.locations=classpath:db/migration/common,classpath:db/migration/h2
+# spring.flyway.locations=classpath:db/migration/common,classpath:db/migration/oracle
+
 
 # Jwt-Visado
-jwt.environment=desarrollo
+jwt.environment=\${app.env}
 cors.allowedOrigins=http://localhost:*,http://127.0.0.1:*
 visado.area=
 visado.aplicacion=
@@ -1071,6 +1108,139 @@ components:
         data:
           $ref: "#/components/schemas/ConsejeriaSummary"
     `;
+    }
+  
+    function getFlywayData() {
+        return `INSERT INTO "CONSEJERIAS" VALUES(1 , 'A11016094', 'Presidencia de la Junta de Extremadura');
+INSERT INTO "CONSEJERIAS" VALUES(2 , 'A11005996', 'Consejería de Hacienda y Administración Pública');
+INSERT INTO "CONSEJERIAS" VALUES(3 , 'A11044878', 'Consejería de Presidencia, Interior y Diálogo Social');
+INSERT INTO "CONSEJERIAS" VALUES(4 , 'A11044880', 'Consejería de Agricultura, Ganadería y Desarrollo Sostenible');
+INSERT INTO "CONSEJERIAS" VALUES(5 , 'A11044881', 'Consejería de Economía, Empleo y Transformación Digital');
+INSERT INTO "CONSEJERIAS" VALUES(6 , 'A11044884', 'Consejería de Salud y Servicios Sociales');
+INSERT INTO "CONSEJERIAS" VALUES(7 , 'A11044886', 'Consejería de Cultura, Turismo, Jóvenes y Deportes');
+INSERT INTO "CONSEJERIAS" VALUES(8 , 'A11044887', 'Consejería de Educación, Ciencia y Formación Profesional');
+INSERT INTO "CONSEJERIAS" VALUES(9 , 'A11044888', 'Consejería de Infraestructuras, Transporte y Vivienda');
+INSERT INTO "CONSEJERIAS" VALUES(10, 'A11044889', 'Consejería de Gestión Forestal y Mundo Rural');`
+    }
+
+    function getFlywayH2Table(){
+      return `CREATE TABLE IF NOT EXISTS CONSEJERIAS (
+    ID int NOT NULL AUTO_INCREMENT,
+    DIR3 varchar(255) NOT NULL,
+    NOMBRE varchar(255),
+    PRIMARY KEY (ID)
+);`
+    }
+
+    function getFlywayOracleTable(){
+      return `CREATE TABLE CONSEJERIAS (
+    ID NUMBER GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
+    DIR3 VARCHAR2(255),
+    NOMBRE VARCHAR2(255)
+);`
+    }
+
+    function getConsejeriaEntity(appName) {
+      return `package es.acaex.${appName}.models;
+
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Entity(name = "consejerias")	
+@Data  
+@Builder
+@AllArgsConstructor
+@NoArgsConstructor
+public class Consejeria {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    private String dir3;
+    private String nombre;
+}`
+    }
+  
+    function getConsejeriaRepository(appName) {
+      return `package es.acaex.${appName}.repositories;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+import es.acaex.${appName}.models.Consejeria;
+
+public interface ConsejeriasRepository extends JpaRepository<Consejeria, Long> {
+    
+}`;
+    }
+  
+    function getConsejeriasService(appName) {
+      return `package es.acaex.${appName}.services.consejerias;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.stereotype.Service;
+
+import es.acaex.${appName}.dto.ConsejeriaSummary;
+import es.acaex.${appName}.dto.ConsejeriasListResponse;
+import es.acaex.${appName}.models.Consejeria;
+import es.acaex.${appName}.repositories.ConsejeriasRepository;
+
+@Service
+public class FindAllConsejeriaService {
+
+    @Autowired ConsejeriasRepository consejeriasRepository;
+
+    public ResponseEntity<ConsejeriasListResponse> response() {
+        return ResponseEntity.ok().body(execute());
+    }
+
+    private ConsejeriasListResponse execute() {
+        return new ConsejeriasListResponse()
+            .data(consejeriasRepository.findAll().stream().map(this::consejeriaToConsejeriaSummary).toList())
+        ;
+    }
+
+    private ConsejeriaSummary consejeriaToConsejeriaSummary(Consejeria consejeria){
+        return new ConsejeriaSummary()
+            .id(consejeria.getId())
+            .dir3(consejeria.getDir3())
+            .nombre(consejeria.getNombre())
+        ;
+    }
+    
+    
+}
+`;  
+    }
+
+    function getConsejeriaController(appName) {
+      return `package es.acaex.${appName}.controllers;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.stereotype.Component;
+import es.acaex.${appName}.api.ConsejeriasApiDelegate;
+import es.acaex.${appName}.dto.ConsejeriasListResponse;
+import es.acaex.${appName}.services.consejerias.FindAllConsejeriaService;
+
+@Component
+
+public class ConsejeriasController implements ConsejeriasApiDelegate{
+
+    @Autowired FindAllConsejeriaService findAllConsejeriaService;
+
+    @Override
+    public ResponseEntity<ConsejeriasListResponse> listarConsejerias() {
+        return findAllConsejeriaService.response();
+    }
+}
+`;
     }
   </script>
 </body>
