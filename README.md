@@ -10,6 +10,7 @@ Tener configuraciones
 - Versionado - uso de comando de node en conjuncion con Conventional Commits
 - CI/CD - Fichero de gitlab preparado (necesita configuración en repo)
 - Autenticación - Uso de libreria para integrar con SSO y Visado
+- Base de Datos - Migraciones con el uso de Flyway
 - Carpeta - Estructura básica
 - Vs Code - Integración con el IDE (tareas, snippets)
 - Logs - Configuración de Logback para escribir a fichero
