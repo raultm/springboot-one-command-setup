@@ -468,6 +468,25 @@
             "}"
           ]
         },
+         "mapper": {
+          "scope": "java",
+          "prefix": "ex-mapper",
+          "body": [
+            "import org.mapstruct.Mapper;",
+            "import org.mapstruct.factory.Mappers;",
+            "",
+            "@Mapper(componentModel = \"spring\")",
+            "public interface $TM_FILENAME_BASE {",
+            "\t\t$TM_FILENAME_BASE INSTANCE = Mappers.getMapper($TM_FILENAME_BASE.class);",
+            "",
+            "\t\t${2:Destino} ${1/(.*)/${1:/camelcase}/}to$2(${1} ${1/(.*)/${1:/camelcase}/});",
+            "",
+            "\t\t${1:Origen} ${2}to$1(${2} ${2});",
+            "",
+            "}",
+            ""
+          ]
+        },
         "openapi-endpoint": {
           "scope": "yaml",
           "prefix": "ex-openapi-endpoint",
