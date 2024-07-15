@@ -2,7 +2,7 @@
 
 El objetivo de este proyecto es tener un un punto de partida común en los desarrollos del Servicio.
 
-<a href="(https://raultm.github.io/springboot-one-command-setup/acaex-init.html" target="_blank">Formulario para descargar</a>
+[Formulario para descargar](https://raultm.github.io/springboot-one-command-setup/acaex-init.html)
 
 Tener configuraciones
 - Api First (uso de fichero OpenApi y generación automática de Controllers y DTOs)
