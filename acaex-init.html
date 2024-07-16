@@ -1036,18 +1036,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ConsejeriasListResponse"
+        "400":
+          $ref: '#/components/responses/400_BadRequest'
         "401":
-          description: El usuario no está autenticado
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/NoAuthError"
+          $ref: '#/components/responses/401_Unauthorized'
         "403":
-          description: El usuario no tiene permisos para acceder a este recurso
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/NoAuthError"
+          $ref: '#/components/responses/403_Forbidden'
     post:
       summary: Crear una nueva consejeria
       operationId: crearConsejeria
@@ -1067,23 +1061,11 @@ paths:
               schema:
                 $ref: "#/components/schemas/ConsejeriaSummaryResponse"
         "400":
-          description: La información ofrecida es incorrecta
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorObject"
+          $ref: '#/components/responses/400_BadRequest'
         "401":
-          description: El usuario no está autenticado
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/NoAuthError"
+          $ref: '#/components/responses/401_Unauthorized'
         "403":
-          description: El usuario no tiene permisos para acceder a este recurso
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/NoAuthError"
+          $ref: '#/components/responses/403_Forbidden'
 components:
   securitySchemes:
     JWT:
@@ -1098,6 +1080,25 @@ components:
       type: apiKey
       in: header
       name: Jwt-User
+  responses:
+    "400_BadRequest":
+      description: La información ofrecida es incorrecta
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorObject"
+    "401_Unauthorized":
+      description: El usuario no está autenticado
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/NoAuthError"
+    "403_Forbidden":
+      description: El usuario no está autenticado
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/NoAuthError"
   schemas:
     NoAuthError:
       description: Cuando el usuario no está logueado(AUTHenticate) o no tiene permisos (AUTHorization)
