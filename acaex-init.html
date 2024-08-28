@@ -54,7 +54,13 @@
       projectFolder.file('.versionrc', generateVersionRc())
       projectFolder.file('.env.properties.example', getEnvPropertiesExample())
       projectFolder.file('.gitlab-ci.yml', getGitlabCiFileContent())
-      projectFolder.file('.gitignore', (await projectFolder.file('.gitignore').async('string')).replace(".vscode/", "") + "\n.env.properties" + "\n*.db" + "\n.path/*")
+      projectFolder.file('.gitignore', (await projectFolder.file('.gitignore').async('string')).replace(".vscode/", "") 
+          + "\n.env.properties" 
+          + "\n*.db" 
+          + "\n.path/*"
+          + "\nprivatekey"
+          + "\npublickey.pub"
+      )
       projectFolder.folder(`src/main/java/es/acaex/${appName}/services`)
       projectFolder.folder(`src/main/java/es/acaex/${appName}/models`)
       projectFolder.folder(`src/main/java/es/acaex/${appName}/models/mappers`)
@@ -207,7 +213,7 @@
         packageName: "es.acaex." + appName,
         packaging: "war",
         javaVersion: 17,
-        dependencies: "lombok,h2,devtools,oracle,web,jpa,flyway"
+        dependencies: "lombok,h2,devtools,oracle,web,jpa,flyway,validation"
       }
       // Descargar el proyecto desde Spring Initializr
       const searchParams = new URLSearchParams(options).toString();
@@ -269,64 +275,31 @@
 
       // Aquí puedes hacer las modificaciones necesarias al pom.xml
       const dependencies = xmlDoc.getElementsByTagName('dependencies')[0];
-      // https://stackoverflow.com/questions/13220095/remove-unwanted-empty-xmlns-attribute-added-by-appendchild
-      let newDependency = xmlDoc.createElementNS(dependencies.namespaceURI, 'dependency');
-      newDependency.innerHTML = `
-                <groupId>org.springdoc</groupId>
+      const additionalDependencies = [
+                // OpenApi Starter - Mostrar el swagger en http://localhost:8080/swagger-ui/index.html
+                `<groupId>org.springdoc</groupId>
                 <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
-                <version>2.3.0</version>
-            `;
-      dependencies.appendChild(newDependency);
-
-      newDependency = xmlDoc.createElementNS(dependencies.namespaceURI, 'dependency');
-      newDependency.innerHTML = `
-                <groupId>javax.validation</groupId>
-                <artifactId>validation-api</artifactId>
-                <version>2.0.1.Final</version>
-            `;
-      dependencies.appendChild(newDependency);
-
-      newDependency = xmlDoc.createElementNS(dependencies.namespaceURI, 'dependency');
-      newDependency.innerHTML = `
-                <groupId>org.openapitools</groupId>
+                <version>2.3.0</version>`,
+                // Necesario para los DTOs creados con el plugin de OpenApi generator
+                `<groupId>org.openapitools</groupId>
                 <artifactId>jackson-databind-nullable</artifactId>
-                <version>0.2.6</version>
-            `;
-      dependencies.appendChild(newDependency);
-
-      newDependency = xmlDoc.createElementNS(dependencies.namespaceURI, 'dependency');
-      newDependency.innerHTML = `
-                <groupId>javax.annotation</groupId>
-                <artifactId>javax.annotation-api</artifactId>
-                <version>1.3.2</version>
-            `;
-      dependencies.appendChild(newDependency);
-
-      newDependency = xmlDoc.createElementNS(dependencies.namespaceURI, 'dependency');
-      newDependency.innerHTML = `
-                <groupId>javax.servlet</groupId>
-                <artifactId>servlet-api</artifactId>
-                <version>2.5</version>
-                <scope>provided</scope>
-            `;
-      dependencies.appendChild(newDependency);
-
-      newDependency = xmlDoc.createElementNS(dependencies.namespaceURI, 'dependency');
-      newDependency.innerHTML = `
-                <groupId>org.mapstruct</groupId>
+                <version>0.2.6</version>`,
+                // MapStruct - Para facilitar la generación de mappers
+                `<groupId>org.mapstruct</groupId>
                 <artifactId>mapstruct</artifactId>
                 <version>\${org.mapstruct.version}</version>
-                <scope>provided</scope>
-            `;
-      dependencies.appendChild(newDependency);
-
-      newDependency = xmlDoc.createElementNS(dependencies.namespaceURI, 'dependency');
-      newDependency.innerHTML = `
-                <groupId>es.acaex</groupId>
+                <scope>provided</scope>`,
+                // Autenticacion con F5 y Obtener perfiles en Visado
+                `<groupId>es.acaex</groupId>
                 <artifactId>jwt_visado</artifactId>
-                <version>0.2.2</version>
-            `;
-      dependencies.appendChild(newDependency);
+                <version>0.2.3</version>`
+      ]
+      // https://stackoverflow.com/questions/13220095/remove-unwanted-empty-xmlns-attribute-added-by-appendchild
+      additionalDependencies.forEach(additionalDependency => {
+        let newDependency = xmlDoc.createElementNS(dependencies.namespaceURI, 'dependency');
+        newDependency.innerHTML = additionalDependency;
+        dependencies.appendChild(newDependency);
+      })
 
       const plugins = xmlDoc.getElementsByTagName('plugins')[0];
       const newPlugin = xmlDoc.createElementNS(plugins.namespaceURI, 'plugin');
@@ -350,6 +323,8 @@
 							<configOptions>
 								<delegatePattern>true</delegatePattern>
 								<serializableModel>true</serializableModel>
+                <useBeanValidation>true</useBeanValidation>
+								<useJakartaEe>true</useJakartaEe>
 							</configOptions>
 						</configuration>
 					</execution>
