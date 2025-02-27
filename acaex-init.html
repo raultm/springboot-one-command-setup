@@ -205,7 +205,7 @@
       const options = {
         type: "maven-project",
         language: "java",
-        bootVersion: "3.3.3",
+        bootVersion: "3.4.3",
         baseDir: appName,
         groupId: "es.acaex",
         artifactId: appName,
@@ -219,7 +219,8 @@
       // Descargar el proyecto desde Spring Initializr
       const searchParams = new URLSearchParams(options).toString();
       console.log(`https://start.spring.io/starter.zip?${searchParams}`)
-      const url = 'https://corsproxy.io/?' + encodeURIComponent(`https://start.spring.io/starter.zip?${searchParams}`);
+      const url = 'https://corsproxy.io/?' + `https://start.spring.io/starter.zip?${searchParams}`
+      console.log(url)
       // const response = await fetch(url)
       // console.log(response);
       // const blob = await response.blob();
